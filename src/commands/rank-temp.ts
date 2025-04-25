@@ -26,19 +26,20 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const [rawName, tagLine] = userInput.split('/')
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
+    
+    const gameName = encodeURIComponent(rawName.trim()) + ' ' + encodeURIComponent(tagLine.trim())
+    console.log('Encoded game name:', gameName)
 
-    // Enviar la URL correcta con el nombre y tag tal como están (sin codificar el espacio)
-    const gameName = `${rawName} ${tagLine}`
-    console.log('Game name:', gameName)
+    // Log de la URL antes de la solicitud
+    const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`
+    console.log('Request URL:', url)
 
     try {
       // 1. Obtener PUUID
-      const puuidRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`, {
+      const puuidRes = await fetch(url, {
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const puuidData = await puuidRes.json()
-
-      console.log('PUUID response:', puuidData)
 
       if (!puuidData.puuid) throw new Error('PUUID not found')
 
@@ -47,7 +48,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
-      console.log('Summoner response:', summonerData)
+      console.log('PUUID response:', puuidData)
 
       if (!summonerData.id) throw new Error('Summoner ID not found')
 
@@ -67,7 +68,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       }
 
     } catch (error) {
-      console.error('Error details:', error)
+      console.error(error)
       await interaction.reply('Error obteniendo el rango del jugador.')
     }
   }
