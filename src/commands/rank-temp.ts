@@ -17,12 +17,17 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
   async execute(interaction: CommandInteraction) {
     const userInput = interaction.options.getString('summoner')
+    console.log('User input:', userInput)
+    
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
 
     const [rawName, tagLine] = userInput.split('/')
+    console.log('Raw name:', rawName)
+console.log('Tag line:', tagLine)
     const gameName = encodeURIComponent(rawName.trim())
+    console.log('Encoded game name:', gameName)
 
 
     try {
@@ -39,6 +44,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
+      console.log('PUUID response:', puuidData)
 
       if (!summonerData.id) throw new Error('Summoner ID not found')
 
