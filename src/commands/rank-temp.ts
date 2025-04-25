@@ -21,7 +21,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
 
-    const [gameName, tagLine] = userInput.split('/')
+    const [rawName, tagLine] = userInput.split('/')
+    const gameName = encodeURIComponent(rawName.trim())
+
 
     try {
       // 1. Obtener PUUID
