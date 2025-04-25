@@ -26,9 +26,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const [rawName, tagLine] = userInput.split('/')
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
-    
-    // En lugar de usar ' ' (espacio), codificamos todo el nombre y tag correctamente.
-    const gameName = encodeURIComponent(rawName.trim()) + '/' + encodeURIComponent(tagLine.trim())
+
+    // Aquí garantizamos que la URL tenga el formato correcto, sin sobrecodificar
+    const gameName = `${rawName.trim()}/${tagLine.trim()}`
     console.log('Encoded game name:', gameName)
 
     // Log de la URL antes de la solicitud
