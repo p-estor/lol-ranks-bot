@@ -27,9 +27,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
 
-    // Codificar el nombre completo correctamente
-    const gameName = encodeURIComponent(rawName.trim() + ' ' + tagLine.trim())
-    console.log('Encoded game name:', gameName)
+    // Enviar la URL correcta con el nombre y tag tal como están (sin codificar el espacio)
+    const gameName = `${rawName} ${tagLine}`
+    console.log('Game name:', gameName)
 
     try {
       // 1. Obtener PUUID
@@ -38,6 +38,8 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       })
       const puuidData = await puuidRes.json()
 
+      console.log('PUUID response:', puuidData)
+
       if (!puuidData.puuid) throw new Error('PUUID not found')
 
       // 2. Obtener Summoner ID
@@ -45,7 +47,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
-      console.log('PUUID response:', puuidData)
+      console.log('Summoner response:', summonerData)
 
       if (!summonerData.id) throw new Error('Summoner ID not found')
 
@@ -65,7 +67,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       }
 
     } catch (error) {
-      console.error(error)
+      console.error('Error details:', error)
       await interaction.reply('Error obteniendo el rango del jugador.')
     }
   }
