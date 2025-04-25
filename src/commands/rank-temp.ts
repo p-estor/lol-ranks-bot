@@ -25,10 +25,11 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
     const [rawName, tagLine] = userInput.split('/')
     console.log('Raw name:', rawName)
-console.log('Tag line:', tagLine)
+    console.log('Tag line:', tagLine)
+    
+    // Codificamos el nombre y el tag
     const gameName = encodeURIComponent(rawName.trim())
     console.log('Encoded game name:', gameName)
-
 
     try {
       // 1. Obtener PUUID
@@ -37,6 +38,8 @@ console.log('Tag line:', tagLine)
       })
       const puuidData = await puuidRes.json()
 
+      console.log('PUUID response:', puuidData)
+
       if (!puuidData.puuid) throw new Error('PUUID not found')
 
       // 2. Obtener Summoner ID
@@ -44,7 +47,6 @@ console.log('Tag line:', tagLine)
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
-      console.log('PUUID response:', puuidData)
 
       if (!summonerData.id) throw new Error('Summoner ID not found')
 
@@ -53,6 +55,8 @@ console.log('Tag line:', tagLine)
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const rankedData = await rankedRes.json()
+
+      console.log('Ranked Data:', rankedData)
 
       const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
 
