@@ -27,7 +27,8 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
     
-    const gameName = encodeURIComponent(rawName.trim()) + ' ' + encodeURIComponent(tagLine.trim())
+    // En lugar de usar ' ' (espacio), codificamos todo el nombre y tag correctamente.
+    const gameName = encodeURIComponent(rawName.trim()) + '/' + encodeURIComponent(tagLine.trim())
     console.log('Encoded game name:', gameName)
 
     // Log de la URL antes de la solicitud
