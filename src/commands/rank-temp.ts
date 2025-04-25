@@ -44,6 +44,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       // Verificar si la API responde con el PUUID
       if (!puuidData.puuid) {
         console.error('Error: PUUID not found', puuidData)
+        console.error(this.config.riotApiKey)
         return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.')
       }
 
