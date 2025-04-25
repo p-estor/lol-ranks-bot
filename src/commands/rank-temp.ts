@@ -32,7 +32,7 @@ console.log('Tag line:', tagLine)
 
     try {
       // 1. Obtener PUUID
-      const puuidRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`, {
+      const puuidRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${encodeURIComponent(tagLine.trim())}`, {
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const puuidData = await puuidRes.json()
