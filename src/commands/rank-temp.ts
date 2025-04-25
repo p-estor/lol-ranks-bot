@@ -4,7 +4,6 @@ import { I18n } from 'i18n'
 import fetch from 'node-fetch'
 import { CommandInterface } from '../interfaces/command.interface.js'
 
-// Debe ser exportación por defecto y extender CommandInterface
 export default class RankTempCommand extends CommandInterface<CommandInteraction> {
   config: Config
   i18n: I18n
@@ -18,7 +17,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   async execute(interaction: CommandInteraction) {
     const userInput = interaction.options.getString('summoner')
     console.log('User input:', userInput)
-    
+
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
@@ -27,9 +26,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
 
-    // Aquí garantizamos que la URL tenga el formato correcto, sin sobrecodificar
+    // Construimos la URL correctamente sin sobrecodificar
     const gameName = `${rawName.trim()}/${tagLine.trim()}`
-    console.log('Encoded game name:', gameName)
+    console.log('Game name:', gameName)
 
     // Log de la URL antes de la solicitud
     const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`
@@ -42,16 +41,23 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       })
       const puuidData = await puuidRes.json()
 
-      if (!puuidData.puuid) throw new Error('PUUID not found')
+      // Verificar si la API responde con el PUUID
+      if (!puuidData.puuid) {
+        console.error('Error: PUUID not found', puuidData)
+        return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.')
+      }
 
       // 2. Obtener Summoner ID
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
-      console.log('PUUID response:', puuidData)
+      console.log('Summoner response:', summonerData)
 
-      if (!summonerData.id) throw new Error('Summoner ID not found')
+      if (!summonerData.id) {
+        console.error('Error: Summoner ID not found', summonerData)
+        return interaction.reply('No se pudo obtener el ID del invocador.')
+      }
 
       // 3. Obtener Ranked Data
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
@@ -69,7 +75,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       }
 
     } catch (error) {
-      console.error(error)
+      console.error('Error:', error)
       await interaction.reply('Error obteniendo el rango del jugador.')
     }
   }
