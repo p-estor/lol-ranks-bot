@@ -18,6 +18,12 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const userInput = interaction.options.getString('summoner')
     console.log('User input:', userInput)
 
+     const riotToken = process.env.RIOT_TOKEN
+      if (!riotToken) {
+        console.error('Falta el token de Riot. Asegúrate de que RIOT_TOKEN esté definido.')
+        return interaction.reply('Error interno: Riot API token no configurado.')
+      }
+    
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
@@ -37,20 +43,20 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     try {
       // 1. Obtener PUUID
       const puuidRes = await fetch(url, {
-        headers: { 'X-Riot-Token': this.config.riotApiKey }
+        headers: { 'X-Riot-Token': riotToken }
       })
       const puuidData = await puuidRes.json()
 
       // Verificar si la API responde con el PUUID
       if (!puuidData.puuid) {
         console.error('Error: PUUID not found', puuidData)
-        console.error(this.config.riotApiKey)
+        //console.error(this.config.riotApiKey)
         return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.')
       }
 
       // 2. Obtener Summoner ID
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
-        headers: { 'X-Riot-Token': this.config.riotApiKey }
+        headers: { 'X-Riot-Token': riotToken }
       })
       const summonerData = await summonerRes.json()
       console.log('Summoner response:', summonerData)
@@ -62,7 +68,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
       // 3. Obtener Ranked Data
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
-        headers: { 'X-Riot-Token': this.config.riotApiKey }
+        headers: { 'X-Riot-Token': riotToken }
       })
       const rankedData = await rankedRes.json()
 
