@@ -2,18 +2,25 @@ import { CommandInteraction } from 'discord.js'
 import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
 import fetch from 'node-fetch'
+import { CommandInterface } from '../interfaces/command.interface.js'
 
-export default class RankTempCommand {
+// Debe ser exportación por defecto y extender CommandInterface
+export default class RankTempCommand extends CommandInterface<CommandInteraction> {
   config: Config
   i18n: I18n
 
   constructor(config: Config, i18n: I18n) {
+    super('rank-temp') // nombre del comando
     this.config = config
     this.i18n = i18n
   }
 
   async execute(interaction: CommandInteraction) {
-    const userInput = interaction.options.getString('summoner') // "Kai/WEEBx"
+    const userInput = interaction.options.getString('summoner')
+    if (!userInput || !userInput.includes('/')) {
+      return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
+    }
+
     const [gameName, tagLine] = userInput.split('/')
 
     try {
@@ -39,7 +46,6 @@ export default class RankTempCommand {
       })
       const rankedData = await rankedRes.json()
 
-      // Procesar y mostrar los datos al usuario
       const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
 
       if (soloQueue) {
