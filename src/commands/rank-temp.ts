@@ -26,19 +26,17 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const [rawName, tagLine] = userInput.split('/')
     console.log('Raw name:', rawName)
     console.log('Tag line:', tagLine)
-    
-    // Codificamos el nombre y el tag
-    const gameName = encodeURIComponent(rawName.trim())
+
+    // Codificar el nombre completo correctamente
+    const gameName = encodeURIComponent(rawName.trim() + ' ' + tagLine.trim())
     console.log('Encoded game name:', gameName)
 
     try {
       // 1. Obtener PUUID
-      const puuidRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${encodeURIComponent(tagLine.trim())}`, {
+      const puuidRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`, {
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const puuidData = await puuidRes.json()
-
-      console.log('PUUID response:', puuidData)
 
       if (!puuidData.puuid) throw new Error('PUUID not found')
 
@@ -47,6 +45,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const summonerData = await summonerRes.json()
+      console.log('PUUID response:', puuidData)
 
       if (!summonerData.id) throw new Error('Summoner ID not found')
 
@@ -55,8 +54,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         headers: { 'X-Riot-Token': this.config.riotApiKey }
       })
       const rankedData = await rankedRes.json()
-
-      console.log('Ranked Data:', rankedData)
 
       const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
 
