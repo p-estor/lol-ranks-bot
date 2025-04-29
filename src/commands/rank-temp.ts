@@ -81,14 +81,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         // Asignar rol según el tier
         const riotTier = soloQueue.tier.toLowerCase()
         const tierMap: Record<string, string> = {
-          iron: 'Hierro',
-          bronze: 'Bronce',
-          silver: 'Plata',
-          gold: 'Oro',
-          platinum: 'Platino',
-          emerald: 'Esmeralda',
-          diamond: 'Diamante',
-          master: 'Maestro',
+          iron: 'iron',
+          bronze: 'bronze',
+          silver: 'silver',
+          gold: 'gold',
+          platinum: 'platinum',
+          emerald: 'emerald',
+          diamond: 'diamond',
+          master: 'master',
           grandmaster: 'Gran Maestro',
           challenger: 'Retador'
         }
