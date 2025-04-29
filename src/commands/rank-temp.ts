@@ -18,39 +18,34 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const userInput = interaction.options.getString('summoner')
     console.log('User input:', userInput)
 
-     const riotToken = process.env.RIOT_TOKEN
-      if (!riotToken) {
-        console.error('Falta el token de Riot. Asegúrate de que RIOT_TOKEN esté definido.')
-        return interaction.reply('Error interno: Riot API token no configurado.')
-      }
-    
+    const riotToken = process.env.RIOT_TOKEN
+    if (!riotToken) {
+      console.error('Falta el token de Riot. Asegúrate de que RIOT_TOKEN esté definido.')
+      return interaction.reply('Error interno: Riot API token no configurado.')
+    }
+
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
 
     const [rawName, tagLine] = userInput.split('/')
-    console.log('Raw name:', rawName)
-    console.log('Tag line:', tagLine)
-
-    // Construimos la URL correctamente sin sobrecodificar
     const gameName = `${rawName.trim()}/${tagLine.trim()}`
-    console.log('Game name:', gameName)
 
-    // Log de la URL antes de la solicitud
     const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`
-    console.log('Request URL:', url)
 
     try {
       // 1. Obtener PUUID
       const puuidRes = await fetch(url, {
         headers: { 'X-Riot-Token': riotToken }
       })
-      const puuidData = await puuidRes.json()
+      if (!puuidRes.ok) {
+        console.error(`Error al obtener PUUID: ${puuidRes.status} ${puuidRes.statusText}`)
+        return interaction.reply('No se pudo encontrar el invocador. ¿Nombre/Tag correctos?')
+      }
 
-      // Verificar si la API responde con el PUUID
+      const puuidData = await puuidRes.json()
       if (!puuidData.puuid) {
         console.error('Error: PUUID not found', puuidData)
-        //console.error(this.config.riotApiKey)
         return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.')
       }
 
@@ -58,11 +53,13 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
-      const summonerData = await summonerRes.json()
-      console.log('Summoner response:', summonerData)
+      if (!summonerRes.ok) {
+        console.error(`Error al obtener Summoner ID: ${summonerRes.status}`)
+        return interaction.reply('No se pudo obtener el ID del invocador.')
+      }
 
+      const summonerData = await summonerRes.json()
       if (!summonerData.id) {
-        console.error('Error: Summoner ID not found', summonerData)
         return interaction.reply('No se pudo obtener el ID del invocador.')
       }
 
@@ -70,13 +67,52 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
-      const rankedData = await rankedRes.json()
+      if (!rankedRes.ok) {
+        console.error(`Error al obtener datos de ranked: ${rankedRes.status}`)
+        return interaction.reply('No se pudieron obtener los datos de ranked.')
+      }
 
+      const rankedData = await rankedRes.json()
       const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
 
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`
-        await interaction.reply(`${gameName} está en ${rankText}`)
+
+        // Asignar rol según el tier
+        const riotTier = soloQueue.tier.toLowerCase()
+        const tierMap: Record<string, string> = {
+          iron: 'Hierro',
+          bronze: 'Bronce',
+          silver: 'Plata',
+          gold: 'Oro',
+          platinum: 'Platino',
+          emerald: 'Esmeralda',
+          diamond: 'Diamante',
+          master: 'Maestro',
+          grandmaster: 'Gran Maestro',
+          challenger: 'Retador'
+        }
+
+        const roleName = tierMap[riotTier]
+        const guild = interaction.guild
+        const member = await guild?.members.fetch(interaction.user.id)
+        if (!guild || !member) {
+          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`)
+        }
+
+        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+        if (!role) {
+          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`)
+        }
+
+        // Eliminar roles de tiers anteriores
+        const allRankRoles = Object.values(tierMap)
+        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)))
+
+        // Asignar el nuevo rol
+        await member.roles.add(role)
+
+        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`)
       } else {
         await interaction.reply(`${gameName} no tiene partidas clasificadas.`)
       }
