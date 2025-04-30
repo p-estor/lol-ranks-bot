@@ -78,41 +78,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`;
 
-        // Asignar rol según el tier
-        const riotTier = soloQueue.tier.toLowerCase();
-        const tierMap: Record<string, string> = {
-          iron: 'iron',
-          bronze: 'bronze',
-          silver: 'silver',
-          gold: 'gold',
-          platinum: 'platinum',
-          emerald: 'emerald',
-          diamond: 'diamond',
-          master: 'master',
-          grandmaster: 'Gran Maestro',
-          challenger: 'Retador'
-        };
-
-        const roleName = tierMap[riotTier];
-        const guild = interaction.guild;
-        const member = await guild?.members.fetch(interaction.user.id);
-        if (!guild || !member) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`);
-        }
-
-        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-        if (!role) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`);
-        }
-
-        // Eliminar roles de tiers anteriores
-        const allRankRoles = Object.values(tierMap);
-        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)));
-
-        // Asignar el nuevo rol
-        await member.roles.add(role);
-
-        // Generar el icono aleatorio
+        // Generar un icono aleatorio de la lista básica de iconos
         const randomIcon = Math.floor(Math.random() * 70) + 1; // Obtiene un número aleatorio entre 1 y 70
         const embed = new MessageEmbed()
           .setTitle('Verificación de icono de invocador')
@@ -127,7 +93,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         );
 
         await interaction.reply({
-          content: `${gameName} está en ${rankText}. Se ha asignado el rol "${role.name}".`,
+          content: `${gameName} está en ${rankText}. Se requiere que cambies tu icono.`,
           embeds: [embed],
           components: [row]
         });
