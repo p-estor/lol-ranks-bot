@@ -1,4 +1,4 @@
-import { CommandInteraction, MessageActionRow, MessageButton, MessageEmbed } from 'discord.js';
+import { CommandInteraction, MessageActionRow, MessageButton, MessageEmbed, Interaction } from 'discord.js';
 import { Config } from '../interfaces/config.interface.js';
 import { I18n } from 'i18n';
 import fetch from 'node-fetch';
@@ -125,6 +125,41 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     } catch (error) {
       console.error('Error:', error);
       await interaction.reply('Error obteniendo el rango del jugador.');
+    }
+  }
+
+  async handleButtonInteraction(interaction: Interaction) {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId.split('-');
+    if (customId[0] !== 'confirm-icon') return;
+
+    const puuid = customId[1];
+    const iconId = customId[2];
+
+    const riotToken = process.env.RIOT_TOKEN;
+    if (!riotToken) {
+      return interaction.reply('Error interno: Riot API token no configurado.');
+    }
+
+    try {
+      const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
+        headers: { 'X-Riot-Token': riotToken }
+      });
+      if (!summonerRes.ok) {
+        console.error(`Error al obtener datos del invocador: ${summonerRes.status}`);
+        return interaction.reply('Error al obtener datos del invocador.');
+      }
+
+      const summonerData = await summonerRes.json();
+      if (summonerData.profileIconId === parseInt(iconId)) {
+        await interaction.reply('¡Icono confirmado correctamente!');
+      } else {
+        await interaction.reply('El icono no coincide. Asegúrate de que lo hayas cambiado.');
+      }
+    } catch (error) {
+      console.error('Error al verificar el icono:', error);
+      await interaction.reply('Hubo un error al verificar el icono.');
     }
   }
 
