@@ -105,13 +105,45 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           return interaction.reply(`No se pudo encontrar el rol correspondiente a "${roleName}" para asignar.`);
         }
 
-        // Eliminar roles de tiers anteriores
-        const allRankRoles = Object.values(tierMap);
-        await member.roles.remove(member.roles.cache.filter((r) => allRankRoles.includes(r.name)));
+        // Generar un icono aleatorio dentro del rango de iconos básicos (1 a 29)
+        const basicIcons = Array.from({ length: 29 }, (_, i) => i + 1);
+        let randomIcon: number;
+        do {
+          randomIcon = basicIcons[Math.floor(Math.random() * basicIcons.length)];
+        } while (parseInt(summonerData.profileIconId) === randomIcon);
 
-        // Asignar el nuevo rol
-        await member.roles.add(role);
-        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`);
+        // URL de la imagen
+        const iconUrl = `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`;
+
+        // Verificar que la URL es válida
+        try {
+          const imageRes = await fetch(iconUrl);
+          if (!imageRes.ok) {
+            throw new Error('Imagen no válida o no accesible');
+          }
+        } catch (err) {
+          console.error('Error al verificar la imagen:', err);
+          return interaction.reply('Hubo un problema al verificar la imagen del icono. Intenta de nuevo más tarde.');
+        }
+
+        // Crear el embed con la URL del icono verificado
+        const embed = new MessageEmbed()
+          .setTitle('Verificación de icono de invocador')
+          .setDescription('Cambia tu icono al que se muestra arriba y pulsa el botón.')
+          .setImage(iconUrl);
+
+        const row = new MessageActionRow().addComponents(
+          new MessageButton()
+            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}`)
+            .setLabel('✅ Ya lo he cambiado')
+            .setStyle('PRIMARY')
+        );
+
+        await interaction.reply({
+          content: `${gameName} está en ${rankText}. Se requiere que cambies tu icono.`,
+          embeds: [embed],
+          components: [row]
+        });
       } else {
         await interaction.reply(`${gameName} no tiene partidas clasificadas.`);
       }
@@ -147,6 +179,22 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const summonerData = await summonerRes.json();
       if (summonerData.profileIconId === parseInt(iconId)) {
         await interaction.reply('¡Icono confirmado correctamente!');
+
+        // Asignar el rol una vez el icono haya sido verificado
+        const roleName = 'gold';  // Ajusta esto a tu lógica de asignación de roles
+        const guild = interaction.guild;
+        const member = await guild?.members.fetch(interaction.user.id);
+        if (!guild || !member) {
+          return interaction.reply(`No se pudo asignar el rol.`);
+        }
+
+        const role = guild.roles.cache.find((r) => r.name.toLowerCase() === roleName.toLowerCase());
+        if (role) {
+          await member.roles.add(role);
+          return interaction.reply(`Rol "${role.name}" asignado correctamente.`);
+        } else {
+          return interaction.reply('No se encontró el rol para asignar.');
+        }
       } else {
         await interaction.reply('El icono no coincide. Asegúrate de que lo hayas cambiado.');
       }
