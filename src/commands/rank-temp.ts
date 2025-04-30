@@ -78,13 +78,12 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`;
 
-        // Generar un icono aleatorio dentro del rango de iconos básicos (1 a 60)
-        let randomIcon = Math.floor(Math.random() * 60) + 1; // Obtiene un número aleatorio entre 1 y 60
-
-        // Verifica que no sea el mismo icono que ya tiene
-        while (parseInt(summonerData.profileIconId) === randomIcon) {
-          randomIcon = Math.floor(Math.random() * 60) + 1; // Genera otro icono aleatorio si es el mismo
-        }
+        // Generar un icono aleatorio dentro del rango de iconos básicos (1 a 29)
+        const basicIcons = Array.from({ length: 29 }, (_, i) => i + 1);
+        let randomIcon: number;
+        do {
+          randomIcon = basicIcons[Math.floor(Math.random() * basicIcons.length)];
+        } while (parseInt(summonerData.profileIconId) === randomIcon);
 
         // URL de la imagen
         const iconUrl = `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`;
