@@ -53,7 +53,10 @@ client.on('interactionCreate', async (interaction) => {
     if (!command) return
 
     try {
-      await command.onButtonClick(interaction)
+      // Evitar que se responda más de una vez
+      if (!interaction.replied) {
+        await command.onButtonClick(interaction)
+      }
     } catch (error) {
       console.error('Error al manejar el botón:', error)
       if (!interaction.replied) {
@@ -71,7 +74,10 @@ client.on('interactionCreate', async (interaction) => {
     if (!command) return
 
     try {
-      await command.execute(interaction)
+      // Evitar que se responda más de una vez
+      if (!interaction.replied) {
+        await command.execute(interaction)
+      }
     } catch (error) {
       console.error('Error al ejecutar el comando:', error)
       if (!interaction.replied) {
