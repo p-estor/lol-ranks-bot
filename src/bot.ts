@@ -51,7 +51,6 @@ client.on('interactionCreate', async (interaction) => {
     const iconId = parts.pop();
     const base64puuid = parts.slice(2).join('-');
     const puuid = Buffer.from(base64puuid, 'base64').toString();
-    
 
     const riotToken = process.env.RIOT_TOKEN;
 
@@ -60,6 +59,9 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // Defer the reply to allow async operations
+    await interaction.deferReply({ ephemeral: true });
+
     const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
       headers: { 'X-Riot-Token': riotToken }
     });
@@ -67,10 +69,9 @@ client.on('interactionCreate', async (interaction) => {
     if (!summonerRes.ok) {
       const errorText = await summonerRes.text();
       console.error(`❌ Riot API error: Status ${summonerRes.status}, Message: ${errorText}`);
-      await interaction.reply({ content: 'Error al obtener datos del invocador.', ephemeral: true });
+      await interaction.editReply({ content: 'Error al obtener datos del invocador.' });
       return;
     }
-    
 
     const summonerData = await summonerRes.json();
 
@@ -80,12 +81,12 @@ client.on('interactionCreate', async (interaction) => {
 
       if (role && member) {
         await member.roles.add(role);
-        await interaction.reply({ content: '✅ ¡Icono verificado y rol asignado!', ephemeral: true });
+        await interaction.editReply({ content: '✅ ¡Icono verificado y rol asignado!' });
       } else {
-        await interaction.reply({ content: 'No se pudo asignar el rol.', ephemeral: true });
+        await interaction.editReply({ content: 'No se pudo asignar el rol.' });
       }
     } else {
-      await interaction.reply({ content: '❌ Tu icono actual no coincide. Asegúrate de haberlo cambiado correctamente.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Tu icono actual no coincide. Asegúrate de haberlo cambiado correctamente.' });
     }
 
     return;
