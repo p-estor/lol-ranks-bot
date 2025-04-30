@@ -86,10 +86,25 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           randomIcon = Math.floor(Math.random() * 70) + 1; // Genera otro icono aleatorio si es el mismo
         }
 
+        // URL de la imagen
+        const iconUrl = `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`;
+
+        // Verificar que la URL es válida
+        try {
+          const imageRes = await fetch(iconUrl);
+          if (!imageRes.ok) {
+            throw new Error('Imagen no válida o no accesible');
+          }
+        } catch (err) {
+          console.error('Error al verificar la imagen:', err);
+          return interaction.reply('Hubo un problema al verificar la imagen del icono. Intenta de nuevo más tarde.');
+        }
+
+        // Crear el embed con la URL del icono verificado
         const embed = new MessageEmbed()
           .setTitle('Verificación de icono de invocador')
           .setDescription('Cambia tu icono al que se muestra arriba y pulsa el botón.')
-          .setImage(`http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`);
+          .setImage(iconUrl);
 
         const row = new MessageActionRow().addComponents(
           new MessageButton()
