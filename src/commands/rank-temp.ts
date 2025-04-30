@@ -1,4 +1,10 @@
-import { CommandInteraction, MessageActionRow, MessageButton, MessageEmbed, Interaction } from 'discord.js';
+import {
+  CommandInteraction,
+  MessageActionRow,
+  MessageButton,
+  MessageEmbed,
+  Interaction,
+} from 'discord.js';
 import { Config } from '../interfaces/config.interface.js';
 import { I18n } from 'i18n';
 import fetch from 'node-fetch';
@@ -20,7 +26,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
     const riotToken = process.env.RIOT_TOKEN;
     if (!riotToken) {
-      console.error('Falta el token de Riot. Asegúrate de que RIOT_TOKEN esté definido.');
+      console.error('Falta el token de Riot.');
       return interaction.reply('Error interno: Riot API token no configurado.');
     }
 
@@ -33,20 +39,21 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`;
 
     try {
+      // 1. Obtener PUUID
       const puuidRes = await fetch(url, {
         headers: { 'X-Riot-Token': riotToken },
       });
       if (!puuidRes.ok) {
-        console.error(`Error al obtener PUUID: ${puuidRes.status} ${puuidRes.statusText}`);
-        return interaction.reply('No se pudo encontrar el invocador. ¿Nombre/Tag correctos?');
+        console.error(`Error al obtener PUUID: ${puuidRes.status}`);
+        return interaction.reply('No se pudo encontrar el invocador.');
       }
 
       const puuidData = await puuidRes.json();
       if (!puuidData.puuid) {
-        console.error('Error: PUUID not found', puuidData);
-        return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.');
+        return interaction.reply('No se pudo encontrar el PUUID.');
       }
 
+      // 2. Obtener Summoner ID
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': riotToken },
       });
@@ -60,11 +67,11 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo obtener el ID del invocador.');
       }
 
+      // 3. Obtener Ranked Data
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
         headers: { 'X-Riot-Token': riotToken },
       });
       if (!rankedRes.ok) {
-        console.error(`Error al obtener datos de ranked: ${rankedRes.status}`);
         return interaction.reply('No se pudieron obtener los datos de ranked.');
       }
 
@@ -73,8 +80,8 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`;
-        const riotTier = soloQueue.tier.toLowerCase();
 
+        const riotTier = soloQueue.tier.toLowerCase();
         const tierMap: Record<string, string> = {
           iron: 'iron',
           bronze: 'bronze',
@@ -97,7 +104,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
         const role = guild.roles.cache.find((r) => r.name.toLowerCase() === roleName.toLowerCase());
         if (!role) {
-          return interaction.reply(`No se pudo encontrar el rol correspondiente a "${roleName}" para asignar.`);
+          return interaction.reply(`No se pudo encontrar el rol "${roleName}" para asignar.`);
         }
 
         const basicIcons = Array.from({ length: 29 }, (_, i) => i + 1);
@@ -107,15 +114,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         } while (parseInt(summonerData.profileIconId) === randomIcon);
 
         const iconUrl = `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`;
-
         try {
           const imageRes = await fetch(iconUrl);
           if (!imageRes.ok) {
-            throw new Error('Imagen no válida o no accesible');
+            throw new Error('Imagen no válida');
           }
         } catch (err) {
-          console.error('Error al verificar la imagen:', err);
-          return interaction.reply('Hubo un problema al verificar la imagen del icono. Intenta de nuevo más tarde.');
+          console.error('Error imagen:', err);
+          return interaction.reply('Error al verificar la imagen del icono.');
         }
 
         const embed = new MessageEmbed()
@@ -125,7 +131,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
         const row = new MessageActionRow().addComponents(
           new MessageButton()
-            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}-${roleName}`)
+            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}`)
             .setLabel('✅ Ya lo he cambiado')
             .setStyle('PRIMARY')
         );
@@ -139,7 +145,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         await interaction.reply(`${gameName} no tiene partidas clasificadas.`);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error general:', error);
       await interaction.reply('Error obteniendo el rango del jugador.');
     }
   }
@@ -147,10 +153,13 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   async handleButtonInteraction(interaction: Interaction) {
     if (!interaction.isButton()) return;
 
-    const customId = interaction.customId.split('-');
-    if (customId[0] !== 'confirm') return;
+    const customIdParts = interaction.customId.split('-');
+    if (customIdParts[0] !== 'confirm' || customIdParts[1] !== 'icon') return;
 
-    const [, , puuid, iconId, roleName] = customId;
+    const puuid = customIdParts[2];
+    const iconId = customIdParts[3];
+
+    console.log('🔍 Botón pulsado. PUUID:', puuid, 'Icon ID:', iconId);
 
     const riotToken = process.env.RIOT_TOKEN;
     if (!riotToken) {
@@ -161,25 +170,53 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
         headers: { 'X-Riot-Token': riotToken },
       });
+
       if (!summonerRes.ok) {
-        console.error(`Error al obtener datos del invocador: ${summonerRes.status}`);
+        const errorText = await summonerRes.text();
+        console.error(`❌ Error al obtener datos del invocador: ${summonerRes.status} - ${errorText}`);
         return interaction.reply('Error al obtener datos del invocador.');
       }
 
       const summonerData = await summonerRes.json();
       if (summonerData.profileIconId === parseInt(iconId)) {
+        await interaction.reply('¡Icono confirmado correctamente!');
+
+        // 🟡 EXTRAER TIER DEL MENSAJE ORIGINAL
+        const originalMessage = interaction.message.content;
+        const match = originalMessage.match(/está en (\w+)/i);
+        const tier = match?.[1]?.toLowerCase();
+
+        const tierMap: Record<string, string> = {
+          iron: 'iron',
+          bronze: 'bronze',
+          silver: 'silver',
+          gold: 'gold',
+          platinum: 'platinum',
+          emerald: 'emerald',
+          diamond: 'diamond',
+          master: 'master',
+          grandmaster: 'Gran Maestro',
+          challenger: 'Retador',
+        };
+
+        const roleName = tierMap[tier || ''] ?? null;
+
+        if (!roleName) {
+          return interaction.followUp('No se pudo determinar el rol a asignar.');
+        }
+
         const guild = interaction.guild;
         const member = await guild?.members.fetch(interaction.user.id);
         if (!guild || !member) {
-          return interaction.reply(`No se pudo asignar el rol.`);
+          return interaction.followUp('No se pudo asignar el rol.');
         }
 
         const role = guild.roles.cache.find((r) => r.name.toLowerCase() === roleName.toLowerCase());
         if (role) {
           await member.roles.add(role);
-          return interaction.reply(`Rol "${role.name}" asignado correctamente.`);
+          return interaction.followUp(`Rol "${role.name}" asignado correctamente.`);
         } else {
-          return interaction.reply('No se encontró el rol para asignar.');
+          return interaction.followUp(`No se encontró el rol "${roleName}" para asignar.`);
         }
       } else {
         await interaction.reply('El icono no coincide. Asegúrate de que lo hayas cambiado.');
