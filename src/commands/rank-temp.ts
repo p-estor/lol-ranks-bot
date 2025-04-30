@@ -1,4 +1,4 @@
-import { CommandInteraction } from 'discord.js'
+import { CommandInteraction, MessageActionRow, MessageButton } from 'discord.js'
 import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
 import fetch from 'node-fetch'
@@ -70,6 +70,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const randomIconId = basicIcons[Math.floor(Math.random() * basicIcons.length)]
       const iconUrl = `https://ddragon.leagueoflegends.com/cdn/11.21.1/img/profileicon/${randomIconId}.png`
 
+      // Crear el botón interactivo
+      const row = new MessageActionRow().addComponents(
+        new MessageButton()
+          .setCustomId('verify_icon')
+          .setLabel('He cambiado el icono')
+          .setStyle('PRIMARY')
+      )
+
       await interaction.reply({
         content: `¡Hola! Para verificar tu cuenta, por favor cambia tu icono de invocador al siguiente:\n\n`,
         embeds: [{
@@ -79,24 +87,33 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
             url: iconUrl
           },
           footer: { text: `ID del icono: ${randomIconId}` }
-        }]
+        }],
+        components: [row]
       })
 
-      // 4. Esperar a que el usuario cambie el icono y vuelva a ejecutar el comando
-      const collector = interaction.channel?.createMessageCollector({
-        filter: (message) => message.author.id === interaction.user.id,
-        time: 60000, // Tiempo de espera de 1 minuto
-        max: 1,
-      })
+    } catch (error) {
+      console.error('Error:', error)
+      await interaction.reply('Error obteniendo los datos del invocador.')
+    }
+  }
 
-      collector?.on('collect', async () => {
-        // 5. Verificar si el usuario cambió el icono correctamente
-        const summonerDataAfterChange = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-id/${summonerData.id}`, {
+  // Manejar la interacción del botón
+  async onButtonClick(interaction: CommandInteraction) {
+    if (interaction.customId === 'verify_icon') {
+      const userInput = interaction.options.getString('summoner')
+      const riotToken = process.env.RIOT_TOKEN
+
+      const [rawName, tagLine] = userInput.split('/')
+      const gameName = `${rawName.trim()}/${tagLine.trim()}`
+
+      try {
+        // Verificar si el usuario cambió el icono
+        const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${gameName}`, {
           headers: { 'X-Riot-Token': riotToken }
         })
-        const updatedSummonerData = await summonerDataAfterChange.json()
 
-        if (updatedSummonerData.profileIconId === randomIconId) {
+        const summonerData = await summonerRes.json()
+        if (summonerData.profileIconId === randomIconId) {
           // El icono ha cambiado, asignamos el rol
           const roleName = 'Tu rol de invocador'  // Ajusta el nombre del rol según tu necesidad
           const guild = interaction.guild
@@ -116,11 +133,11 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         } else {
           await interaction.reply('Aún no has cambiado el icono. Intenta de nuevo.')
         }
-      })
 
-    } catch (error) {
-      console.error('Error:', error)
-      await interaction.reply('Error obteniendo los datos del invocador.')
+      } catch (error) {
+        console.error('Error:', error)
+        await interaction.reply('Error al verificar el icono del invocador.')
+      }
     }
   }
 
