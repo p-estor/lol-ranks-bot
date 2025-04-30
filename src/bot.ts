@@ -12,6 +12,7 @@ import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
 import { Command } from './commands/rank-temp.js'
 
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Configurar i18n
