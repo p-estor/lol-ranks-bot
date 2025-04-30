@@ -78,12 +78,12 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`;
 
-        // Generar un icono aleatorio de la lista básica de iconos
-        let randomIcon = Math.floor(Math.random() * 70) + 1; // Obtiene un número aleatorio entre 1 y 70
+        // Generar un icono aleatorio dentro del rango de iconos básicos (1 a 60)
+        let randomIcon = Math.floor(Math.random() * 60) + 1; // Obtiene un número aleatorio entre 1 y 60
 
         // Verifica que no sea el mismo icono que ya tiene
         while (parseInt(summonerData.profileIconId) === randomIcon) {
-          randomIcon = Math.floor(Math.random() * 70) + 1; // Genera otro icono aleatorio si es el mismo
+          randomIcon = Math.floor(Math.random() * 60) + 1; // Genera otro icono aleatorio si es el mismo
         }
 
         // URL de la imagen
