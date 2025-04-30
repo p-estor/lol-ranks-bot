@@ -1,4 +1,4 @@
-import { CommandInteraction } from 'discord.js'
+import { CommandInteraction, MessageActionRow, MessageButton } from 'discord.js'
 import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
 import fetch from 'node-fetch'
@@ -67,68 +67,97 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const summonerIconId = summonerData.profileIconId
       console.log(`Icono del invocador: ${summonerIconId}`)
 
-      // Verificar que el icono sea el correcto
-      // (Puedes agregar un icono específico para la verificación, como un código de icono generado por el bot)
-      const expectedIconId = 1234  // Aquí pon el ID del icono esperado (el icono que el bot generó)
+      // Aquí es donde generas el icono que el usuario debe tener
+      const expectedIconId = 1234  // Aquí pon el ID del icono que el bot ha generado o el que deseas que el usuario use
 
-      if (summonerIconId !== expectedIconId) {
-        return interaction.reply('❌ Tu icono no coincide con el esperado. Cambia tu icono al proporcionado por el bot.')
-      }
+      // Enviar instrucciones con un botón de confirmación
+      const iconUrl = `http://ddragon.leagueoflegends.com/cdn/11.15.1/img/profileicon/${expectedIconId}.png`
+      const row = new MessageActionRow().addComponents(
+        new MessageButton()
+          .setCustomId('confirm-icon')
+          .setLabel('Confirmar que cambié mi icono')
+          .setStyle('PRIMARY')
+      )
 
-      // 4. Obtener Ranked Data
-      const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
-        headers: { 'X-Riot-Token': riotToken }
+      await interaction.reply({
+        content: `Por favor, cambia tu icono al siguiente: ${iconUrl}`,
+        components: [row]
       })
-      if (!rankedRes.ok) {
-        console.error(`Error al obtener datos de ranked: ${rankedRes.status}`)
-        return interaction.reply('No se pudieron obtener los datos de ranked.')
-      }
 
-      const rankedData = await rankedRes.json()
-      const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
+      // Esperar la interacción con el botón de confirmación
+      const filter = (buttonInteraction: any) => buttonInteraction.user.id === interaction.user.id && buttonInteraction.customId === 'confirm-icon'
+      const collector = interaction.channel?.createMessageComponentCollector({ filter, time: 60000 }) // 60 segundos de espera
 
-      if (soloQueue) {
-        const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`
+      collector?.on('collect', async (buttonInteraction: any) => {
+        // Verificar el icono después de la confirmación
+        const newSummonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
+          headers: { 'X-Riot-Token': riotToken }
+        })
+        const newSummonerData = await newSummonerRes.json()
+        const newSummonerIconId = newSummonerData.profileIconId
 
-        // Asignar rol según el tier
-        const riotTier = soloQueue.tier.toLowerCase()
-        const tierMap: Record<string, string> = {
-          iron: 'iron',
-          bronze: 'bronze',
-          silver: 'silver',
-          gold: 'gold',
-          platinum: 'platinum',
-          emerald: 'emerald',
-          diamond: 'diamond',
-          master: 'master',
-          grandmaster: 'Gran Maestro',
-          challenger: 'Retador'
+        if (newSummonerIconId !== expectedIconId) {
+          return buttonInteraction.reply('Tu icono sigue sin coincidir. Asegúrate de haberlo cambiado.')
         }
 
-        const roleName = tierMap[riotTier]
-        const guild = interaction.guild
-        const member = await guild?.members.fetch(interaction.user.id)
-        if (!guild || !member) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`)
+        // Si el icono es correcto, continuar con la asignación del rol
+        const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
+          headers: { 'X-Riot-Token': riotToken }
+        })
+        if (!rankedRes.ok) {
+          console.error(`Error al obtener datos de ranked: ${rankedRes.status}`)
+          return buttonInteraction.reply('No se pudieron obtener los datos de ranked.')
         }
 
-        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
-        if (!role) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`)
+        const rankedData = await rankedRes.json()
+        const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
+
+        if (soloQueue) {
+          const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`
+
+          // Asignar rol según el tier
+          const riotTier = soloQueue.tier.toLowerCase()
+          const tierMap: Record<string, string> = {
+            iron: 'iron',
+            bronze: 'bronze',
+            silver: 'silver',
+            gold: 'gold',
+            platinum: 'platinum',
+            emerald: 'emerald',
+            diamond: 'diamond',
+            master: 'master',
+            grandmaster: 'Gran Maestro',
+            challenger: 'Retador'
+          }
+
+          const roleName = tierMap[riotTier]
+          const guild = interaction.guild
+          const member = await guild?.members.fetch(interaction.user.id)
+          if (!guild || !member) {
+            return buttonInteraction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`)
+          }
+
+          const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+          if (!role) {
+            return buttonInteraction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`)
+          }
+
+          // Eliminar roles de tiers anteriores
+          const allRankRoles = Object.values(tierMap)
+          await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)))
+
+          // Asignar el nuevo rol
+          await member.roles.add(role)
+
+          await buttonInteraction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`)
+        } else {
+          await buttonInteraction.reply(`${gameName} no tiene partidas clasificadas.`)
         }
-
-        // Eliminar roles de tiers anteriores
-        const allRankRoles = Object.values(tierMap)
-        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)))
-
-        // Asignar el nuevo rol
-        await member.roles.add(role)
-
-        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`)
-      } else {
-        await interaction.reply(`${gameName} no tiene partidas clasificadas.`)
-      }
-
+      })
+      
+      collector?.on('end', () => {
+        interaction.followUp('Tiempo de confirmación expirado. Intenta de nuevo si no has cambiado el icono.')
+      })
     } catch (error) {
       console.error('Error:', error)
       await interaction.reply('Error obteniendo el rango del jugador.')
