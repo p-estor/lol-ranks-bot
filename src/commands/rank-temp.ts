@@ -63,19 +63,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo obtener el ID del invocador.')
       }
 
-      // 3. Obtener datos del icono de perfil
-      const summonerIconId = summonerData.profileIconId
-      console.log(`Icono del invocador: ${summonerIconId}`)
-
-      // Verificar que el icono sea el correcto
-      // (Puedes agregar un icono específico para la verificación, como un código de icono generado por el bot)
-      const expectedIconId = 1234  // Aquí pon el ID del icono esperado (el icono que el bot generó)
-
-      if (summonerIconId !== expectedIconId) {
-        return interaction.reply('❌ Tu icono no coincide con el esperado. Cambia tu icono al proporcionado por el bot.')
-      }
-
-      // 4. Obtener Ranked Data
+      // 3. Obtener Ranked Data
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
