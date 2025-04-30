@@ -9,7 +9,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   i18n: I18n;
 
   constructor(config: Config, i18n: I18n) {
-    super('rank-temp'); // nombre del comando
+    super('rank-temp');
     this.config = config;
     this.i18n = i18n;
   }
@@ -30,11 +30,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
     const [rawName, tagLine] = userInput.split('/');
     const gameName = `${rawName.trim()}/${tagLine.trim()}`;
-
     const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`;
 
     try {
-      // 1. Obtener PUUID
       const puuidRes = await fetch(url, {
         headers: { 'X-Riot-Token': riotToken },
       });
@@ -49,7 +47,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.');
       }
 
-      // 2. Obtener Summoner ID
       const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': riotToken },
       });
@@ -63,7 +60,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo obtener el ID del invocador.');
       }
 
-      // 3. Obtener Ranked Data
       const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
         headers: { 'X-Riot-Token': riotToken },
       });
@@ -77,9 +73,8 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
       if (soloQueue) {
         const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`;
-
-        // Asignar rol según el tier
         const riotTier = soloQueue.tier.toLowerCase();
+
         const tierMap: Record<string, string> = {
           iron: 'iron',
           bronze: 'bronze',
@@ -105,17 +100,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           return interaction.reply(`No se pudo encontrar el rol correspondiente a "${roleName}" para asignar.`);
         }
 
-        // Generar un icono aleatorio dentro del rango de iconos básicos (1 a 29)
         const basicIcons = Array.from({ length: 29 }, (_, i) => i + 1);
         let randomIcon: number;
         do {
           randomIcon = basicIcons[Math.floor(Math.random() * basicIcons.length)];
         } while (parseInt(summonerData.profileIconId) === randomIcon);
 
-        // URL de la imagen
         const iconUrl = `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${randomIcon}.png`;
 
-        // Verificar que la URL es válida
         try {
           const imageRes = await fetch(iconUrl);
           if (!imageRes.ok) {
@@ -126,7 +118,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           return interaction.reply('Hubo un problema al verificar la imagen del icono. Intenta de nuevo más tarde.');
         }
 
-        // Crear el embed con la URL del icono verificado
         const embed = new MessageEmbed()
           .setTitle('Verificación de icono de invocador')
           .setDescription('Cambia tu icono al que se muestra arriba y pulsa el botón.')
@@ -134,7 +125,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
         const row = new MessageActionRow().addComponents(
           new MessageButton()
-            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}`)
+            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}-${roleName}`)
             .setLabel('✅ Ya lo he cambiado')
             .setStyle('PRIMARY')
         );
@@ -157,10 +148,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     if (!interaction.isButton()) return;
 
     const customId = interaction.customId.split('-');
-    if (customId[0] !== 'confirm-icon') return;
+    if (customId[0] !== 'confirm') return;
 
-    const puuid = customId[1];
-    const iconId = customId[2];
+    const [, , puuid, iconId, roleName] = customId;
 
     const riotToken = process.env.RIOT_TOKEN;
     if (!riotToken) {
@@ -178,10 +168,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
 
       const summonerData = await summonerRes.json();
       if (summonerData.profileIconId === parseInt(iconId)) {
-        await interaction.reply('¡Icono confirmado correctamente!');
-
-        // Asignar el rol una vez el icono haya sido verificado
-        const roleName = 'gold';  // Ajusta esto a tu lógica de asignación de roles
         const guild = interaction.guild;
         const member = await guild?.members.fetch(interaction.user.id);
         if (!guild || !member) {
