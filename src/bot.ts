@@ -48,6 +48,8 @@ client.on('interactionCreate', async (interaction) => {
   // Manejo de botón de icono personalizado para verificación
   if (interaction.customId.startsWith('confirm-icon-')) {
     const [_, puuid, expectedIconId] = interaction.customId.split('-');
+    const expectedIconId = parts.pop();
+    const puuid = parts.slice(2).join('-'); // ignora 'confirm' y 'icon'
     const riotToken = process.env.RIOT_TOKEN;
 
     if (!riotToken) {
@@ -60,9 +62,12 @@ client.on('interactionCreate', async (interaction) => {
     });
 
     if (!summonerRes.ok) {
+      const errorText = await summonerRes.text();
+      console.error(`❌ Riot API error: Status ${summonerRes.status}, Message: ${errorText}`);
       await interaction.reply({ content: 'Error al obtener datos del invocador.', ephemeral: true });
       return;
     }
+    
 
     const summonerData = await summonerRes.json();
 
