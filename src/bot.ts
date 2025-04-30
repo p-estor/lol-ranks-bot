@@ -1,4 +1,4 @@
-import { Client, Collection, Intents } from 'discord.js'
+import { Client, Collection, Intents, Message } from 'discord.js'
 import 'dotenv/config'
 import low from 'lowdb'
 import Bottleneck from 'bottleneck'
@@ -10,8 +10,6 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
-import RankTempCommand from './commands/rank-temp.js'
-
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -37,58 +35,61 @@ const client: Client = new Client({
     Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
     Intents.FLAGS.GUILD_MEMBERS
   ]
-}) as Client & { commands?: Collection<string, any> }
+})
 
 client.commands = new Collection()
 
-// Registrar comando rank-temp
-client.commands.set('rank-temp', new RankTempCommand(client.config, i18n))
-
 client.login(process.env.DISCORD_TOKEN)
 
-// Manejador de interacciones
+// Agregar manejador de interacciones
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isButton()) {
-    const command = client.commands.get('rank-temp')
-    if (!command) return
+  if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
 
-    try {
-      // Evitar que se responda más de una vez
-      if (!interaction.replied) {
-        await command.onButtonClick(interaction)
+  switch (interaction.customId) {
+    case 'button1':
+      await interaction.reply({
+        content: 'Por favor, escribe el nombre de usuario al cual le quieres añadir el rol.',
+        ephemeral: true // Respuesta solo visible para el usuario que presionó el botón
+      });
+
+      // Esperar la respuesta del usuario
+      const filter = (message: Message) => message.author.id === interaction.user.id;
+      const collected = await interaction.channel?.awaitMessages({
+        filter,
+        max: 1,
+        time: 15000, // Esperar 15 segundos por la respuesta
+        errors: ['time'],
+      });
+
+      if (!collected) {
+        await interaction.followUp({ content: 'No se recibió ningún nombre de usuario a tiempo.' });
+        return;
       }
-    } catch (error) {
-      console.error('Error al manejar el botón:', error)
-      if (!interaction.replied) {
-        await interaction.reply({
-          content: '❌ Hubo un error al procesar la interacción del botón.',
-          ephemeral: true
-        })
+
+      const username = collected.first()?.content;
+      const member = interaction.guild?.members.cache.find(m => m.user.username === username);
+      if (member) {
+        const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplazar por la ID real del rol
+        if (role) {
+          await member.roles.add(role);
+          await interaction.followUp({ content: `Rol añadido a ${username}!` });
+        } else {
+          await interaction.followUp({ content: 'No se encontró el rol.' });
+        }
+      } else {
+        await interaction.followUp({ content: 'No se encontró el usuario.' });
       }
-    }
-    return
+      break;
+    case 'button2':
+      await interaction.reply({ content: 'Botón 2 presionado' });
+      break;
+    case 'button3':
+      await interaction.reply({ content: 'Botón 3 presionado' });
+      break;
+    default:
+      await interaction.reply({ content: 'Acción desconocida' });
   }
-
-  if (interaction.isCommand()) {
-    const command = client.commands.get(interaction.commandName)
-    if (!command) return
-
-    try {
-      // Evitar que se responda más de una vez
-      if (!interaction.replied) {
-        await command.execute(interaction)
-      }
-    } catch (error) {
-      console.error('Error al ejecutar el comando:', error)
-      if (!interaction.replied) {
-        await interaction.reply({
-          content: '❌ Hubo un error al ejecutar el comando.',
-          ephemeral: true
-        })
-      }
-    }
-  }
-})
+});
 
 // Crear archivo players.json si no existe
 if (!fs.existsSync('./players.json')) {
