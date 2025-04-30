@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
-import { Command } from './commands/rank-temp-command.js'
+import { Command } from './commands/rank-temp.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
