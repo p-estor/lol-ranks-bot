@@ -72,7 +72,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const summonerData = await summonerRes.json();
 
-    if (summonerData.profileIconId?.toString() === expectedIconId) {
+    if (summonerData.profileIconId?.toString() === iconId) {
       const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplaza con la ID real del rol
       const member = interaction.guild?.members.cache.get(interaction.user.id);
 
