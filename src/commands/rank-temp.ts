@@ -63,70 +63,66 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo obtener el ID del invocador.')
       }
 
-      // 3. Obtener Ranked Data
-      const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
-        headers: { 'X-Riot-Token': riotToken }
+      // Mostrar el icono actual del invocador
+      const iconUrl = `https://ddragon.leagueoflegends.com/cdn/11.21.1/img/profileicon/${summonerData.profileIconId}.png`
+      await interaction.reply({
+        content: `¡Hola! Para verificar tu cuenta, por favor cambia tu icono de invocador al siguiente:\n\n`,
+        embeds: [{
+          title: 'Cambio de icono necesario',
+          description: `Este es el icono que necesitas:\n\n`,
+          image: {
+            url: iconUrl
+          },
+          footer: { text: `ID del icono: ${summonerData.profileIconId}` }
+        }]
       })
-      if (!rankedRes.ok) {
-        console.error(`Error al obtener datos de ranked: ${rankedRes.status}`)
-        return interaction.reply('No se pudieron obtener los datos de ranked.')
-      }
 
-      const rankedData = await rankedRes.json()
-      const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
+      // 3. Esperar a que el usuario cambie el icono y vuelva a ejecutar el comando
+      const collector = interaction.channel?.createMessageCollector({
+        filter: (message) => message.author.id === interaction.user.id,
+        time: 60000, // Tiempo de espera de 1 minuto
+        max: 1,
+      })
 
-      if (soloQueue) {
-        const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`
+      collector?.on('collect', async () => {
+        // Verificar si el usuario cambió el icono correctamente
+        const summonerDataAfterChange = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-id/${summonerData.id}`, {
+          headers: { 'X-Riot-Token': riotToken }
+        })
+        const updatedSummonerData = await summonerDataAfterChange.json()
 
-        // Asignar rol según el tier
-        const riotTier = soloQueue.tier.toLowerCase()
-        const tierMap: Record<string, string> = {
-          iron: 'iron',
-          bronze: 'bronze',
-          silver: 'silver',
-          gold: 'gold',
-          platinum: 'platinum',
-          emerald: 'emerald',
-          diamond: 'diamond',
-          master: 'master',
-          grandmaster: 'Gran Maestro',
-          challenger: 'Retador'
+        if (updatedSummonerData.profileIconId === summonerData.profileIconId) {
+          await interaction.reply('Aún no has cambiado el icono. Intenta de nuevo.')
+        } else {
+          // El icono ha cambiado, asignamos el rol
+          const roleName = 'Tu rol de invocador'  // Ajusta el nombre del rol según tu necesidad
+          const guild = interaction.guild
+          const member = await guild?.members.fetch(interaction.user.id)
+          if (!guild || !member) {
+            return interaction.reply('No se pudo asignar el rol.')
+          }
+
+          const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+          if (!role) {
+            return interaction.reply('El rol no existe en el servidor.')
+          }
+
+          // Asignar el rol
+          await member.roles.add(role)
+          await interaction.reply(`¡Icono cambiado correctamente! El rol "${role.name}" ha sido asignado.`)
         }
-
-        const roleName = tierMap[riotTier]
-        const guild = interaction.guild
-        const member = await guild?.members.fetch(interaction.user.id)
-        if (!guild || !member) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`)
-        }
-
-        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
-        if (!role) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`)
-        }
-
-        // Eliminar roles de tiers anteriores
-        const allRankRoles = Object.values(tierMap)
-        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)))
-
-        // Asignar el nuevo rol
-        await member.roles.add(role)
-
-        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`)
-      } else {
-        await interaction.reply(`${gameName} no tiene partidas clasificadas.`)
-      }
+      })
 
     } catch (error) {
       console.error('Error:', error)
-      await interaction.reply('Error obteniendo el rango del jugador.')
+      await interaction.reply('Error obteniendo los datos del invocador.')
     }
   }
 
   getSlashCommandData() {
     return {
       name: 'rank-temp',
-      description: 'Consulta el rango de un invocador (API temporal)',
+      description: 'Consulta el rango de un invocador (API temporal) y verifica el icono',
       options: [
         {
           name: 'summoner',
