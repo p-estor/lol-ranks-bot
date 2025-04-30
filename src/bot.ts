@@ -1,4 +1,4 @@
-import { Client, Collection, Intents, Message, MessageActionRow, MessageButton } from 'discord.js'
+import { Client, Collection, Intents } from 'discord.js'
 import 'dotenv/config'
 import low from 'lowdb'
 import Bottleneck from 'bottleneck'
@@ -11,7 +11,6 @@ import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
 import { Command } from './commands/rank-temp.js'
-
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -37,7 +36,7 @@ const client: Client = new Client({
     Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
     Intents.FLAGS.GUILD_MEMBERS
   ]
-})
+}) as Client & { commands?: Collection<string, any> }
 
 client.commands = new Collection()
 
@@ -46,27 +45,43 @@ client.commands.set('rank-temp', new Command(client.config, i18n))
 
 client.login(process.env.DISCORD_TOKEN)
 
-// Agregar manejador de interacciones
+// Manejador de interacciones
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
+  if (interaction.isButton()) {
+    const command = client.commands.get('rank-temp')
+    if (!command) return
 
-  switch (interaction.customId) {
-    case 'verify_icon': // Este es el customId del botón
-      await interaction.reply({
-        content: '¡Gracias por presionar el botón para cambiar el icono!',
-        ephemeral: true
-      });
-      break;
-    case 'button2':
-      await interaction.reply({ content: 'Botón 2 presionado' });
-      break;
-    case 'button3':
-      await interaction.reply({ content: 'Botón 3 presionado' });
-      break;
-    default:
-      await interaction.reply({ content: 'Acción desconocida' });
+    try {
+      await command.onButtonClick(interaction)
+    } catch (error) {
+      console.error('Error al manejar el botón:', error)
+      if (!interaction.replied) {
+        await interaction.reply({
+          content: '❌ Hubo un error al procesar la interacción del botón.',
+          ephemeral: true
+        })
+      }
+    }
+    return
   }
-});
+
+  if (interaction.isCommand()) {
+    const command = client.commands.get(interaction.commandName)
+    if (!command) return
+
+    try {
+      await command.execute(interaction)
+    } catch (error) {
+      console.error('Error al ejecutar el comando:', error)
+      if (!interaction.replied) {
+        await interaction.reply({
+          content: '❌ Hubo un error al ejecutar el comando.',
+          ephemeral: true
+        })
+      }
+    }
+  }
+})
 
 // Crear archivo players.json si no existe
 if (!fs.existsSync('./players.json')) {
