@@ -91,17 +91,18 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           .setDescription('Cambia tu icono al que se muestra arriba y pulsa el botón.')
           .setImage(iconUrl);
 
+        const encodedPuuid = Buffer.from(puuidData.puuid).toString('base64');
         const row = new MessageActionRow().addComponents(
           new MessageButton()
-            .setCustomId(`confirm-icon-${puuidData.puuid}-${randomIcon}-${roleName}`)
-            .setLabel('✅ Ya lo he cambiado')
+            .setCustomId(`confirm-icon-${encodedPuuid}-${iconId}-${roleName}`)
+            .setLabel('Confirmar icono')
             .setStyle('PRIMARY')
         );
 
         await interaction.reply({
           content: `${gameName} está en ${rankText}. Se requiere que cambies tu icono.`,
           embeds: [embed],
-          components: [row]
+          components: [row],
         });
       } else {
         await interaction.reply(`${gameName} no tiene partidas clasificadas.`);
@@ -115,7 +116,15 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   async handleButtonInteraction(interaction: Interaction) {
     if (!interaction.isButton()) return;
 
-    const [_, puuid, iconId, roleName] = interaction.customId.split('-');
+    const parts = interaction.customId.split('-');
+    if (parts.length < 5) {
+      return interaction.reply('ID del botón malformado.');
+    }
+
+    const [_, __, encodedPuuid, iconId, ...roleNameParts] = parts;
+    const roleName = roleNameParts.join('-'); // por si el rol tiene guiones
+    const puuid = Buffer.from(encodedPuuid, 'base64').toString('utf-8');
+
     const riotToken = process.env.RIOT_TOKEN;
     if (!riotToken) {
       return interaction.reply('Error interno: Riot API token no configurado.');
@@ -135,11 +144,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           return interaction.reply(`No se pudo asignar el rol.`);
         }
 
-        const allTiers = ['iron', 'bronze', 'silver', 'gold', 'platinum', 'emerald', 'diamond', 'master', 'gran maestro', 'retador'];
+        const allTiers = [
+          'iron', 'bronze', 'silver', 'gold',
+          'platinum', 'emerald', 'diamond',
+          'master', 'gran maestro', 'retador',
+        ];
         const rolesToRemove = member.roles.cache.filter(role =>
           allTiers.includes(role.name.toLowerCase())
         );
-
         await member.roles.remove(rolesToRemove);
 
         const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
