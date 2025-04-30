@@ -63,21 +63,26 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         return interaction.reply('No se pudo obtener el ID del invocador.')
       }
 
-      // Mostrar el icono actual del invocador
-      const iconUrl = `https://ddragon.leagueoflegends.com/cdn/11.21.1/img/profileicon/${summonerData.profileIconId}.png`
+      // 3. Selección aleatoria de icono básico
+      const basicIcons = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+      ]
+      const randomIconId = basicIcons[Math.floor(Math.random() * basicIcons.length)]
+      const iconUrl = `https://ddragon.leagueoflegends.com/cdn/11.21.1/img/profileicon/${randomIconId}.png`
+
       await interaction.reply({
         content: `¡Hola! Para verificar tu cuenta, por favor cambia tu icono de invocador al siguiente:\n\n`,
         embeds: [{
           title: 'Cambio de icono necesario',
-          description: `Este es el icono que necesitas:\n\n`,
+          description: `Este es el icono que necesitas poner en tu cuenta:\n\n`,
           image: {
             url: iconUrl
           },
-          footer: { text: `ID del icono: ${summonerData.profileIconId}` }
+          footer: { text: `ID del icono: ${randomIconId}` }
         }]
       })
 
-      // 3. Esperar a que el usuario cambie el icono y vuelva a ejecutar el comando
+      // 4. Esperar a que el usuario cambie el icono y vuelva a ejecutar el comando
       const collector = interaction.channel?.createMessageCollector({
         filter: (message) => message.author.id === interaction.user.id,
         time: 60000, // Tiempo de espera de 1 minuto
@@ -85,15 +90,13 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       })
 
       collector?.on('collect', async () => {
-        // Verificar si el usuario cambió el icono correctamente
+        // 5. Verificar si el usuario cambió el icono correctamente
         const summonerDataAfterChange = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-id/${summonerData.id}`, {
           headers: { 'X-Riot-Token': riotToken }
         })
         const updatedSummonerData = await summonerDataAfterChange.json()
 
-        if (updatedSummonerData.profileIconId === summonerData.profileIconId) {
-          await interaction.reply('Aún no has cambiado el icono. Intenta de nuevo.')
-        } else {
+        if (updatedSummonerData.profileIconId === randomIconId) {
           // El icono ha cambiado, asignamos el rol
           const roleName = 'Tu rol de invocador'  // Ajusta el nombre del rol según tu necesidad
           const guild = interaction.guild
@@ -110,6 +113,8 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           // Asignar el rol
           await member.roles.add(role)
           await interaction.reply(`¡Icono cambiado correctamente! El rol "${role.name}" ha sido asignado.`)
+        } else {
+          await interaction.reply('Aún no has cambiado el icono. Intenta de nuevo.')
         }
       })
 
