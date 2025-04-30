@@ -1,4 +1,4 @@
-import { Client, Collection, Intents, Message } from 'discord.js'
+import { Client, Collection, Intents, Message, MessageActionRow, MessageButton } from 'discord.js'
 import 'dotenv/config'
 import low from 'lowdb'
 import Bottleneck from 'bottleneck'
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
+import { Command } from './commands/rank-temp-command.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -39,6 +40,9 @@ const client: Client = new Client({
 
 client.commands = new Collection()
 
+// Registrar comando rank-temp
+client.commands.set('rank-temp', new Command(client.config, i18n))
+
 client.login(process.env.DISCORD_TOKEN)
 
 // Agregar manejador de interacciones
@@ -46,39 +50,11 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
 
   switch (interaction.customId) {
-    case 'button1':
+    case 'verify_icon': // Este es el customId del botón
       await interaction.reply({
-        content: 'Por favor, escribe el nombre de usuario al cual le quieres añadir el rol.',
-        ephemeral: true // Respuesta solo visible para el usuario que presionó el botón
+        content: '¡Gracias por presionar el botón para cambiar el icono!',
+        ephemeral: true
       });
-
-      // Esperar la respuesta del usuario
-      const filter = (message: Message) => message.author.id === interaction.user.id;
-      const collected = await interaction.channel?.awaitMessages({
-        filter,
-        max: 1,
-        time: 15000, // Esperar 15 segundos por la respuesta
-        errors: ['time'],
-      });
-
-      if (!collected) {
-        await interaction.followUp({ content: 'No se recibió ningún nombre de usuario a tiempo.' });
-        return;
-      }
-
-      const username = collected.first()?.content;
-      const member = interaction.guild?.members.cache.find(m => m.user.username === username);
-      if (member) {
-        const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplazar por la ID real del rol
-        if (role) {
-          await member.roles.add(role);
-          await interaction.followUp({ content: `Rol añadido a ${username}!` });
-        } else {
-          await interaction.followUp({ content: 'No se encontró el rol.' });
-        }
-      } else {
-        await interaction.followUp({ content: 'No se encontró el usuario.' });
-      }
       break;
     case 'button2':
       await interaction.reply({ content: 'Botón 2 presionado' });
