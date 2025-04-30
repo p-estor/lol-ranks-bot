@@ -91,6 +91,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         components: [row]
       });
 
+      // Guardar el randomIconId en la interacción para poder accederlo en la respuesta del botón
+      interaction.customData = { randomIconId };
+
     } catch (error) {
       console.error('Error:', error);
       await interaction.reply('Error obteniendo los datos del invocador.');
@@ -113,6 +116,10 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
         });
 
         const summonerData = await summonerRes.json();
+
+        // Recuperar el randomIconId desde la interacción anterior
+        const randomIconId = interaction.customData?.randomIconId;
+
         if (summonerData.profileIconId === randomIconId) {
           // El icono ha cambiado, asignamos el rol
           const roleName = 'Tu rol de invocador';  // Ajusta el nombre del rol según tu necesidad
