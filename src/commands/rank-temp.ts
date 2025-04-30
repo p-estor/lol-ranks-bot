@@ -1,8 +1,20 @@
-import { CommandInteraction, MessageActionRow, MessageButton, MessageEmbed, Interaction } from 'discord.js';
+import {
+  CommandInteraction,
+  MessageActionRow,
+  MessageButton,
+  MessageEmbed,
+  Interaction,
+} from 'discord.js';
 import { Config } from '../interfaces/config.interface.js';
 import { I18n } from 'i18n';
 import fetch from 'node-fetch';
 import { CommandInterface } from '../interfaces/command.interface.js';
+
+// Mapa temporal para almacenar los datos de verificación
+const pendingVerifications = new Map<
+  string,
+  { puuid: string; iconId: number; roleName: string }
+>();
 
 export default class RankTempCommand extends CommandInterface<CommandInteraction> {
   config: Config;
@@ -91,10 +103,13 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           .setDescription('Cambia tu icono al que se muestra arriba y pulsa el botón.')
           .setImage(iconUrl);
 
-        const encodedPuuid = Buffer.from(puuidData.puuid).toString('base64');
+        // Guardar la verificación en el mapa
+        const verificationData = { puuid: puuidData.puuid, iconId: randomIcon, roleName };
+        pendingVerifications.set(interaction.user.id, verificationData);
+
         const row = new MessageActionRow().addComponents(
           new MessageButton()
-            .setCustomId(`confirm-icon-${encodedPuuid}-${iconId}-${roleName}`)
+            .setCustomId(`confirm-icon-${interaction.user.id}`)
             .setLabel('Confirmar icono')
             .setStyle('PRIMARY')
         );
@@ -116,14 +131,14 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   async handleButtonInteraction(interaction: Interaction) {
     if (!interaction.isButton()) return;
 
-    const parts = interaction.customId.split('-');
-    if (parts.length < 5) {
-      return interaction.reply('ID del botón malformado.');
+    const userId = interaction.customId.split('-')[1];
+    const verificationData = pendingVerifications.get(userId);
+
+    if (!verificationData) {
+      return interaction.reply('No se encontró una verificación pendiente.');
     }
 
-    const [_, __, encodedPuuid, iconId, ...roleNameParts] = parts;
-    const roleName = roleNameParts.join('-'); // por si el rol tiene guiones
-    const puuid = Buffer.from(encodedPuuid, 'base64').toString('utf-8');
+    const { puuid, iconId, roleName } = verificationData;
 
     const riotToken = process.env.RIOT_TOKEN;
     if (!riotToken) {
@@ -137,21 +152,18 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       );
       const summonerData = await summonerRes.json();
 
-      if (summonerData.profileIconId === parseInt(iconId)) {
+      if (summonerData.profileIconId === iconId) {
         const guild = interaction.guild;
         const member = await guild?.members.fetch(interaction.user.id);
         if (!guild || !member) {
-          return interaction.reply(`No se pudo asignar el rol.`);
+          return interaction.reply('No se pudo asignar el rol.');
         }
 
-        const allTiers = [
-          'iron', 'bronze', 'silver', 'gold',
-          'platinum', 'emerald', 'diamond',
-          'master', 'gran maestro', 'retador',
-        ];
+        const allTiers = ['iron', 'bronze', 'silver', 'gold', 'platinum', 'emerald', 'diamond', 'master', 'gran maestro', 'retador'];
         const rolesToRemove = member.roles.cache.filter(role =>
           allTiers.includes(role.name.toLowerCase())
         );
+
         await member.roles.remove(rolesToRemove);
 
         const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
