@@ -47,9 +47,10 @@ client.on('interactionCreate', async (interaction) => {
 
   // Manejo de botón de icono personalizado para verificación
   if (interaction.customId.startsWith('confirm-icon-')) {
-    const [_, puuid, expectedIconId] = interaction.customId.split('-');
-    const expectedIconId = parts.pop();
-    const puuid = parts.slice(2).join('-'); // ignora 'confirm' y 'icon'
+    const parts = interaction.customId.split('-');
+    const iconId = parts.pop();  // Nuevo nombre para el icono
+    const puuid = parts.slice(2).join('-');  // El PUUID se reconstruye con los posibles guiones
+
     const riotToken = process.env.RIOT_TOKEN;
 
     if (!riotToken) {
