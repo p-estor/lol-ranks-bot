@@ -153,6 +153,42 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const summonerData = await summonerRes.json();
       if (summonerData.profileIconId === parseInt(iconId)) {
         await interaction.reply('¡Icono confirmado correctamente!');
+
+        // Asignar rol según el tier
+        const riotTier = soloQueue.tier.toLowerCase();
+        const tierMap: Record<string, string> = {
+          iron: 'iron',
+          bronze: 'bronze',
+          silver: 'silver',
+          gold: 'gold',
+          platinum: 'platinum',
+          emerald: 'emerald',
+          diamond: 'diamond',
+          master: 'master',
+          grandmaster: 'Gran Maestro',
+          challenger: 'Retador'
+        };
+
+        const roleName = tierMap[riotTier];
+        const guild = interaction.guild;
+        const member = await guild?.members.fetch(interaction.user.id);
+        if (!guild || !member) {
+          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`);
+        }
+
+        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+        if (!role) {
+          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`);
+        }
+
+        // Eliminar roles de tiers anteriores
+        const allRankRoles = Object.values(tierMap);
+        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)));
+
+        // Asignar el nuevo rol
+        await member.roles.add(role);
+
+        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`);
       } else {
         await interaction.reply('El icono no coincide. Asegúrate de que lo hayas cambiado.');
       }
