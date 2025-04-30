@@ -68,7 +68,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       console.log(`Icono del invocador: ${summonerIconId}`)
 
       // Aquí es donde generas el icono que el usuario debe tener
-      const expectedIconId = Math.floor(Math.random() * 28) + 1;  // Aquí pon el ID del icono que el bot ha generado o el que deseas que el usuario use
+      const expectedIconId = 1234  // Aquí pon el ID del icono que el bot ha generado o el que deseas que el usuario use
 
       // Enviar instrucciones con un botón de confirmación
       const iconUrl = `http://ddragon.leagueoflegends.com/cdn/11.15.1/img/profileicon/${expectedIconId}.png`
