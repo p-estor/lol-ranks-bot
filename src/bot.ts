@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
-import { Command } from './commands/rank-temp.js'
+import RankTempCommand from './commands/rank-temp.js'
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -41,7 +42,7 @@ const client: Client = new Client({
 client.commands = new Collection()
 
 // Registrar comando rank-temp
-client.commands.set('rank-temp', new Command(client.config, i18n))
+client.commands.set('rank-temp', new RankTempCommand(client.config, i18n))
 
 client.login(process.env.DISCORD_TOKEN)
 
