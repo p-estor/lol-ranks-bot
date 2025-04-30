@@ -43,21 +43,58 @@ client.login(process.env.DISCORD_TOKEN)
 
 // Agregar manejador de interacciones
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
+  if (!interaction.isButton()) return;
+
+  // Manejo de botón de icono personalizado para verificación
+  if (interaction.customId.startsWith('confirm-icon-')) {
+    const [_, puuid, expectedIconId] = interaction.customId.split('-');
+    const riotToken = process.env.RIOT_TOKEN;
+
+    if (!riotToken) {
+      await interaction.reply({ content: 'Error: Riot API no configurada.', ephemeral: true });
+      return;
+    }
+
+    const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
+      headers: { 'X-Riot-Token': riotToken }
+    });
+
+    if (!summonerRes.ok) {
+      await interaction.reply({ content: 'Error al obtener datos del invocador.', ephemeral: true });
+      return;
+    }
+
+    const summonerData = await summonerRes.json();
+
+    if (summonerData.profileIconId?.toString() === expectedIconId) {
+      const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplaza con la ID real del rol
+      const member = interaction.guild?.members.cache.get(interaction.user.id);
+
+      if (role && member) {
+        await member.roles.add(role);
+        await interaction.reply({ content: '✅ ¡Icono verificado y rol asignado!', ephemeral: true });
+      } else {
+        await interaction.reply({ content: 'No se pudo asignar el rol.', ephemeral: true });
+      }
+    } else {
+      await interaction.reply({ content: '❌ Tu icono actual no coincide. Asegúrate de haberlo cambiado correctamente.', ephemeral: true });
+    }
+
+    return;
+  }
 
   switch (interaction.customId) {
     case 'button1':
       await interaction.reply({
         content: 'Por favor, escribe el nombre de usuario al cual le quieres añadir el rol.',
-        ephemeral: true // Respuesta solo visible para el usuario que presionó el botón
+        ephemeral: true
       });
 
-      // Esperar la respuesta del usuario
       const filter = (message: Message) => message.author.id === interaction.user.id;
       const collected = await interaction.channel?.awaitMessages({
         filter,
         max: 1,
-        time: 15000, // Esperar 15 segundos por la respuesta
+        time: 15000,
         errors: ['time'],
       });
 

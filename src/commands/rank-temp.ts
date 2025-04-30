@@ -1,132 +1,71 @@
-import { CommandInteraction } from 'discord.js'
-import { Config } from '../interfaces/config.interface.js'
-import { I18n } from 'i18n'
-import fetch from 'node-fetch'
-import { CommandInterface } from '../interfaces/command.interface.js'
+// Asegúrate de que esto esté arriba con tus imports
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, EmbedBuilder } from 'discord.js';
+import { Config } from '../interfaces/config.interface.js';
+import { I18n } from 'i18n';
+import fetch from 'node-fetch';
+import { CommandInterface } from '../interfaces/command.interface.js';
 
 export default class RankTempCommand extends CommandInterface<CommandInteraction> {
-  config: Config
-  i18n: I18n
+  config: Config;
+  i18n: I18n;
 
   constructor(config: Config, i18n: I18n) {
-    super('rank-temp') // nombre del comando
-    this.config = config
-    this.i18n = i18n
+    super('rank-temp');
+    this.config = config;
+    this.i18n = i18n;
   }
 
   async execute(interaction: CommandInteraction) {
-    const userInput = interaction.options.getString('summoner')
-    console.log('User input:', userInput)
+    const userInput = interaction.options.getString('summoner');
+    const riotToken = process.env.RIOT_TOKEN;
+    const region = 'europe';
 
-    const riotToken = process.env.RIOT_TOKEN
-    if (!riotToken) {
-      console.error('Falta el token de Riot. Asegúrate de que RIOT_TOKEN esté definido.')
-      return interaction.reply('Error interno: Riot API token no configurado.')
-    }
+    if (!riotToken) return interaction.reply('Error interno: Riot API token no configurado.');
+    if (!userInput || !userInput.includes('/')) return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)');
 
-    if (!userInput || !userInput.includes('/')) {
-      return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
-    }
+    const [rawName, tagLine] = userInput.split('/');
+    const gameName = `${rawName.trim()}/${tagLine.trim()}`;
 
-    const [rawName, tagLine] = userInput.split('/')
-    const gameName = `${rawName.trim()}/${tagLine.trim()}`
+    // Obtener PUUID
+    const accountUrl = `https://${region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${rawName.trim()}/${tagLine.trim()}`;
+    const accountRes = await fetch(accountUrl, { headers: { 'X-Riot-Token': riotToken } });
 
-    const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}`
+    if (!accountRes.ok) return interaction.reply('No se pudo encontrar el invocador. ¿Nombre/Tag correctos?');
 
-    try {
-      // 1. Obtener PUUID
-      const puuidRes = await fetch(url, {
-        headers: { 'X-Riot-Token': riotToken }
-      })
-      if (!puuidRes.ok) {
-        console.error(`Error al obtener PUUID: ${puuidRes.status} ${puuidRes.statusText}`)
-        return interaction.reply('No se pudo encontrar el invocador. ¿Nombre/Tag correctos?')
-      }
+    const accountData = await accountRes.json();
+    const puuid = accountData.puuid;
 
-      const puuidData = await puuidRes.json()
-      if (!puuidData.puuid) {
-        console.error('Error: PUUID not found', puuidData)
-        return interaction.reply('No se pudo encontrar el PUUID para el invocador proporcionado.')
-      }
+    // Obtener datos del invocador (incluido icono)
+    const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
+      headers: { 'X-Riot-Token': riotToken }
+    });
+    const summonerData = await summonerRes.json();
+    const summonerId = summonerData.id;
 
-      // 2. Obtener Summoner ID
-      const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuidData.puuid}`, {
-        headers: { 'X-Riot-Token': riotToken }
-      })
-      if (!summonerRes.ok) {
-        console.error(`Error al obtener Summoner ID: ${summonerRes.status}`)
-        return interaction.reply('No se pudo obtener el ID del invocador.')
-      }
+    // ICONO ALEATORIO ENTRE LOS BÁSICOS
+    const randomIconId = Math.floor(Math.random() * 28) + 0; // del 0 al 27
+    const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/${randomIconId}.png`;
 
-      const summonerData = await summonerRes.json()
-      if (!summonerData.id) {
-        return interaction.reply('No se pudo obtener el ID del invocador.')
-      }
+    const embed = new EmbedBuilder()
+      .setTitle('Verificación de icono')
+      .setDescription(`Cambia tu icono en League of Legends por este y presiona el botón para confirmar.`)
+      .setImage(iconUrl)
+      .setColor('#0099ff');
 
-      // 3. Obtener Ranked Data
-      const rankedRes = await fetch(`https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
-        headers: { 'X-Riot-Token': riotToken }
-      })
-      if (!rankedRes.ok) {
-        console.error(`Error al obtener datos de ranked: ${rankedRes.status}`)
-        return interaction.reply('No se pudieron obtener los datos de ranked.')
-      }
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`confirm-icon-${puuid}-${randomIconId}`)
+        .setLabel('✅ Ya lo he cambiado')
+        .setStyle(ButtonStyle.Success)
+    );
 
-      const rankedData = await rankedRes.json()
-      const soloQueue = rankedData.find((entry: any) => entry.queueType === 'RANKED_SOLO_5x5')
-
-      if (soloQueue) {
-        const rankText = `${soloQueue.tier} ${soloQueue.rank} - ${soloQueue.leaguePoints} LP`
-
-        // Asignar rol según el tier
-        const riotTier = soloQueue.tier.toLowerCase()
-        const tierMap: Record<string, string> = {
-          iron: 'iron',
-          bronze: 'bronze',
-          silver: 'silver',
-          gold: 'gold',
-          platinum: 'platinum',
-          emerald: 'emerald',
-          diamond: 'diamond',
-          master: 'master',
-          grandmaster: 'Gran Maestro',
-          challenger: 'Retador'
-        }
-
-        const roleName = tierMap[riotTier]
-        const guild = interaction.guild
-        const member = await guild?.members.fetch(interaction.user.id)
-        if (!guild || !member) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero no se pudo asignar el rol.`)
-        }
-
-        const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase())
-        if (!role) {
-          return interaction.reply(`${gameName} está en ${rankText}, pero el rol "${roleName}" no existe en este servidor.`)
-        }
-
-        // Eliminar roles de tiers anteriores
-        const allRankRoles = Object.values(tierMap)
-        await member.roles.remove(member.roles.cache.filter(r => allRankRoles.includes(r.name)))
-
-        // Asignar el nuevo rol
-        await member.roles.add(role)
-
-        await interaction.reply(`${gameName} está en ${rankText}. Rol "${role.name}" asignado.`)
-      } else {
-        await interaction.reply(`${gameName} no tiene partidas clasificadas.`)
-      }
-
-    } catch (error) {
-      console.error('Error:', error)
-      await interaction.reply('Error obteniendo el rango del jugador.')
-    }
+    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
   }
 
   getSlashCommandData() {
     return {
       name: 'rank-temp',
-      description: 'Consulta el rango de un invocador (API temporal)',
+      description: 'Consulta el rango de un invocador (con verificación de icono)',
       options: [
         {
           name: 'summoner',
@@ -135,6 +74,6 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
           required: true
         }
       ]
-    }
+    };
   }
 }
