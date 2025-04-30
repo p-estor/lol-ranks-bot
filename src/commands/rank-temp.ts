@@ -122,3 +122,33 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     };
   }
 }
+
+// Botón de verificación
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
+
+  const [action, puuid, icon] = interaction.customId.split('-');
+  if (action === 'confirm-icon') {
+    try {
+      const user = interaction.user;
+      const member = interaction.guild?.members.cache.get(user.id);
+      if (!member) return;
+
+      // Verificar que el icono coincida
+      const currentIcon = member.user.avatarURL();
+      if (currentIcon === `http://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/${icon}.png`) {
+        // Asignar el rol después de la verificación
+        const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Cambia por el ID del rol
+        if (role) {
+          await member.roles.add(role);
+          await interaction.reply({ content: `¡Rol asignado a ${user.username}!`, ephemeral: true });
+        }
+      } else {
+        await interaction.reply({ content: 'Tu icono no ha sido cambiado correctamente.', ephemeral: true });
+      }
+    } catch (error) {
+      console.error('Error al verificar el icono:', error);
+      await interaction.reply({ content: 'Hubo un error al intentar verificar el icono.', ephemeral: true });
+    }
+  }
+});
