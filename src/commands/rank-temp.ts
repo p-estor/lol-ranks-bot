@@ -123,7 +123,9 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
   }
 }
 
-// Botón de verificación
+// Botón de verificación (aquí también se utiliza el cliente del bot)
+import { client } from '../bot'; // Asegúrate de importar correctamente el cliente desde el archivo correspondiente
+
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
