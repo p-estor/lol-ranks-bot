@@ -74,6 +74,10 @@ client.on('interactionCreate', async (interaction) => {
       });
       const summonerData = await summonerRes.json();
 
+      console.log(`Esperado: ${iconId}, Actual: ${summonerData.profileIconId}`)
+      console.log(`Icono esperado: ${iconId}, Icono actual: ${summonerData.profileIconId}`);
+
+
       if (summonerData.profileIconId?.toString() !== iconId) {
         await interaction.reply({ content: '❌ Tu icono actual no coincide.', ephemeral: true });
         return;
