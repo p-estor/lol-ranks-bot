@@ -10,7 +10,6 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
-import fetch from 'node-fetch' // 👈 necesario para la verificación
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,45 +45,65 @@ client.login(process.env.DISCORD_TOKEN)
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
-  // Manejo de botón de icono personalizado para verificación
-  if (interaction.customId.startsWith('confirm-icon-')) {
+  if (interaction.customId.startsWith('confirm-')) {
     const parts = interaction.customId.split('-');
-    const iconId = parts.pop();
-    const base64puuid = parts.slice(2).join('-');
-    const puuid = Buffer.from(base64puuid, 'base64').toString();
-    
+    const iconId = parts[1];
+    const shortPuuid = parts[2];
+
     const riotToken = process.env.RIOT_TOKEN;
+    const guild = interaction.guild;
+    const member = guild?.members.cache.get(interaction.user.id);
 
-    if (!riotToken) {
-      await interaction.reply({ content: 'Error: Riot API no configurada.', ephemeral: true });
+    if (!riotToken || !guild || !member) {
+      await interaction.reply({ content: 'Error de configuración o permisos.', ephemeral: true });
       return;
     }
 
-    const summonerRes = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
-      headers: { 'X-Riot-Token': riotToken }
-    });
+    const validEloRoles = process.env.RANKS
+      ? JSON.parse(process.env.RANKS)
+      : ["Iron","Bronze","Silver","Gold","Platinum","Emerald","Diamond","Master","Grandmaster","Challenger"];
 
-    if (!summonerRes.ok) {
-      const errorText = await summonerRes.text();
-      console.error(`❌ Riot API error: Status ${summonerRes.status}, Message: ${errorText}`);
-      await interaction.reply({ content: 'Error al obtener datos del invocador.', ephemeral: true });
-      return;
-    }
+    try {
+      const accountsRes = await fetch(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-puuid/${shortPuuid}`, {
+        headers: { 'X-Riot-Token': riotToken }
+      });
+      const accountData = await accountsRes.json();
 
-    const summonerData = await summonerRes.json();
+      const summonerRes = await fetch(`https://${process.env.REGION}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${accountData.puuid}`, {
+        headers: { 'X-Riot-Token': riotToken }
+      });
+      const summonerData = await summonerRes.json();
 
-    if (summonerData.profileIconId?.toString() === iconId) {
-      const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplaza con la ID real del rol
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-
-      if (role && member) {
-        await member.roles.add(role);
-        await interaction.reply({ content: '✅ ¡Icono verificado y rol asignado!', ephemeral: true });
-      } else {
-        await interaction.reply({ content: 'No se pudo asignar el rol.', ephemeral: true });
+      if (summonerData.profileIconId?.toString() !== iconId) {
+        await interaction.reply({ content: '❌ Tu icono actual no coincide.', ephemeral: true });
+        return;
       }
-    } else {
-      await interaction.reply({ content: '❌ Tu icono actual no coincide. Asegúrate de haberlo cambiado correctamente.', ephemeral: true });
+
+      const rankedRes = await fetch(`https://${process.env.REGION}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
+        headers: { 'X-Riot-Token': riotToken }
+      });
+      const rankedData = await rankedRes.json();
+      const soloQueue = rankedData.find((q: any) => q.queueType === 'RANKED_SOLO_5x5');
+
+      if (!soloQueue) {
+        await interaction.reply({ content: 'No se encontró información de clasificatoria soloQ.', ephemeral: true });
+        return;
+      }
+
+      const tier = soloQueue.tier;
+      const rolesToRemove = member.roles.cache.filter(role => validEloRoles.includes(role.name));
+      await member.roles.remove(rolesToRemove);
+
+      const newRole = guild.roles.cache.find(r => r.name.toLowerCase() === tier.toLowerCase());
+      if (newRole) {
+        await member.roles.add(newRole);
+        await interaction.reply({ content: `✅ Icono verificado y rol de **${tier}** asignado.`, ephemeral: true });
+      } else {
+        await interaction.reply({ content: `✅ Icono verificado. No se encontró rol para **${tier}**.`, ephemeral: true });
+      }
+    } catch (err) {
+      console.error(err);
+      await interaction.reply({ content: 'Ocurrió un error durante la verificación.', ephemeral: true });
     }
 
     return;
@@ -113,7 +132,7 @@ client.on('interactionCreate', async (interaction) => {
       const username = collected.first()?.content;
       const member = interaction.guild?.members.cache.find(m => m.user.username === username);
       if (member) {
-        const role = interaction.guild?.roles.cache.get('1357361465966858372'); // Reemplazar por la ID real del rol
+        const role = interaction.guild?.roles.cache.get('1357361465966858372');
         if (role) {
           await member.roles.add(role);
           await interaction.followUp({ content: `Rol añadido a ${username}!` });
@@ -135,17 +154,14 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// Crear archivo players.json si no existe
 if (!fs.existsSync('./players.json')) {
   fs.writeFileSync('./players.json', '{}')
 }
 
-// Inicializar lowdb
 const adapter = new FileSync('players.json')
 const db = low(adapter)
 db.defaults({ players: [] }).write()
 
-// Lógica principal
 async function main() {
   const dbUpgrader = new DbUpgrader()
   await dbUpgrader.upgrade()
