@@ -130,8 +130,56 @@ db.defaults({ players: [] }).write()
 async function main() {
   const dbUpgrader = new DbUpgrader()
   await dbUpgrader.upgrade()
+  try {
+    const validator = new ConfigValidator({
+      discordToken: process.env.DISCORD_TOKEN,
+      language: process.env.LANGUAGE || 'en',
+      concurrentRequests: parseInt(process.env.CONCURRENT_REQUESTS || '5'),
+      requestTime: parseInt(process.env.REQUEST_TIME || '1000'),
+      guildId: process.env.GUILD_ID,
+      setVerifiedRole: process.env.SET_VERIFIED_ROLE === 'true',
+      enableVerification: process.env.ENABLE_VERIFICATION === 'true',
+      enableTierUpdateMessages: process.env.ENABLE_TIER_UPDATE_MESSAGES === 'true',
+      riotToken: process.env.RIOT_TOKEN,
+      status: process.env.STATUS || '',
+      ranks: JSON.parse(process.env.RANKS || '["Iron","Bronze","Silver","Gold","Platinum","Emerald","Diamond","Master","Grandmaster","Challenger"]'),
+      rankIconNames: JSON.parse(process.env.RANK_ICON_NAMES || '{}'),
+      region: process.env.REGION || 'euw1',
+      timeZone: process.env.TIMEZONE || 'Europe/Madrid',
+      eloRoleLanguage: process.env.ELO_ROLE_LANGUAGE || 'en',
+      verifiedRoleLanguage: process.env.VERIFIED_ROLE_LANGUAGE || 'en',
+      enableCronJob: process.env.ENABLE_CRON_JOB === 'true',
+      cronTab: process.env.CRON_TAB || '0 0 * * *',
+      embedColor: process.env.EMBED_COLOR || '#0099ff'
+    })
+    await validator.validateConfig()
+    console.log('✅ Configuration is valid!')
+  } catch (error) {
+    console.trace('❌ Configuration is invalid!', error)
+    return
+  }
 
-  // ...resto sin cambios...
+  new Events(client, db, limiter, i18n, {
+    discordToken: process.env.DISCORD_TOKEN,
+    language: process.env.LANGUAGE || 'en',
+    concurrentRequests: parseInt(process.env.CONCURRENT_REQUESTS || '5'),
+    requestTime: parseInt(process.env.REQUEST_TIME || '1000'),
+    guildId: process.env.GUILD_ID,
+    setVerifiedRole: process.env.SET_VERIFIED_ROLE === 'true',
+    enableVerification: process.env.ENABLE_VERIFICATION === 'true',
+    enableTierUpdateMessages: process.env.ENABLE_TIER_UPDATE_MESSAGES === 'true',
+    riotToken: process.env.RIOT_TOKEN,
+    status: process.env.STATUS || '',
+    ranks: JSON.parse(process.env.RANKS || '["Iron","Bronze","Silver","Gold","Platinum","Emerald","Diamond","Master","Grandmaster","Challenger"]'),
+    rankIconNames: JSON.parse(process.env.RANK_ICON_NAMES || '{}'),
+    region: process.env.REGION || 'euw1',
+    timeZone: process.env.TIMEZONE || 'Europe/Madrid',
+    eloRoleLanguage: process.env.ELO_ROLE_LANGUAGE || 'en',
+    verifiedRoleLanguage: process.env.VERIFIED_ROLE_LANGUAGE || 'en',
+    enableCronJob: process.env.ENABLE_CRON_JOB === 'true',
+    cronTab: process.env.CRON_TAB || '0 0 * * *',
+    embedColor: process.env.EMBED_COLOR || '#0099ff'
+  })
 }
 
 await main()
