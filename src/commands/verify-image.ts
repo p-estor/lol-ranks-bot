@@ -43,7 +43,7 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
 
     const row = new MessageActionRow().addComponents(
       new MessageButton()
-        .setCustomId(`verify_icon_${interaction.user.id}`)
+        .setCustomId(`verify_icon_${iconId}_${interaction.user.id}`)
         .setLabel('Confirmar')
         .setStyle('PRIMARY')
     )
@@ -60,9 +60,13 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
     if (!interaction.isButton()) return
 
     const buttonInteraction = interaction as ButtonInteraction
-    const userId = buttonInteraction.user.id
+    if (!buttonInteraction.customId.startsWith('verify_icon_')) return
 
-    if (!buttonInteraction.customId.startsWith('verify_icon_') || !iconStore.has(userId)) return
+    const [, iconIdStr, userId] = buttonInteraction.customId.split('_')
+    const expectedIcon = parseInt(iconIdStr, 10)
+
+    if (!iconStore.has(userId)) return
+
 
     const userInput = buttonInteraction.message.interaction?.options.getString('summoner')
     if (!userInput || !userInput.includes('/')) {
@@ -88,7 +92,9 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
       const summonerData = await summonerRes.json()
 
       const currentIcon = summonerData.profileIconId
-      const expectedIcon = iconStore.get(userId)
+      const [, iconIdStr, userId] = buttonInteraction.customId.split('_')
+      const expectedIcon = parseInt(iconIdStr, 10)
+
 
       if (currentIcon === expectedIcon) {
         await buttonInteraction.reply({ content: '✅ Verificación completada con éxito.', ephemeral: true })
