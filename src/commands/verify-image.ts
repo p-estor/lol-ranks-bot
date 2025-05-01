@@ -75,7 +75,10 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
     }
 
     const [rawName, tagLine] = userInput.split('/')
-    const gameName = `${rawName.trim()}/${tagLine.trim()}`
+    const encodedName = encodeURIComponent(rawName.trim())
+    const encodedTag  = encodeURIComponent(tagLine.trim())
+    const gameName    = `${encodedName}/${encodedTag}`
+
 
     // Log: Nombre y Tag del invocador
     console.log('🔍 [verify-image] gameName:', gameName)
