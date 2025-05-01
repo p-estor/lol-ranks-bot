@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
+import fetch from 'node-fetch' // 👈 necesario para la verificación
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -52,7 +53,6 @@ client.on('interactionCreate', async (interaction) => {
     const base64puuid = parts.slice(2).join('-');
     const puuid = Buffer.from(base64puuid, 'base64').toString();
     
-
     const riotToken = process.env.RIOT_TOKEN;
 
     if (!riotToken) {
@@ -70,7 +70,6 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply({ content: 'Error al obtener datos del invocador.', ephemeral: true });
       return;
     }
-    
 
     const summonerData = await summonerRes.json();
 
