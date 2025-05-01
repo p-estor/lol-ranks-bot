@@ -1,9 +1,8 @@
 import {
   CommandInteraction,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  AttachmentBuilder
+  MessageActionRow,
+  MessageButton,
+  MessageAttachment
 } from 'discord.js'
 import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
@@ -28,7 +27,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     if (!riotToken) {
       return interaction.reply('Error interno: Riot API token no configurado.')
     }
-    
+
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
@@ -56,14 +55,15 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const iconId = Math.floor(Math.random() * 28) + 1 // 1 al 28
       const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/${iconId}.png`
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-        .setCustomId(`confirm-icon-${iconId}-${Buffer.from(puuidData.puuid).toString('base64')}`)
-          .setLabel('✅ Confirmar icono')
-          .setStyle(ButtonStyle.Primary)
-      )
+      // Después:
+const row = new MessageActionRow().addComponents(
+  new MessageButton()
+    .setCustomId(...)
+    .setLabel(...)
+    .setStyle('PRIMARY') // En v13 los estilos son strings
+)
 
-      const attachment = new AttachmentBuilder(iconUrl, { name: 'icon.png' });
+const attachment = new MessageAttachment(iconUrl, 'icon.png')
 
 await interaction.reply({
   content: `Cambia tu icono al siguiente y pulsa "Confirmar":`,
