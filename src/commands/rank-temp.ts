@@ -28,7 +28,7 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
     if (!riotToken) {
       return interaction.reply('Error interno: Riot API token no configurado.')
     }
-
+    
     if (!userInput || !userInput.includes('/')) {
       return interaction.reply('Formato incorrecto. Usa Nombre/Tag (ej. Kai/WEEBx)')
     }
