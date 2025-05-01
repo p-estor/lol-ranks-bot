@@ -55,9 +55,12 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const iconId = Math.floor(Math.random() * 28) + 1 // 1 al 28
       const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/${iconId}.png`
 
+      const shortPuuid = puuidData.puuid.slice(0, 8) // usar solo los primeros 8 caracteres
+      const customId = `confirm-${iconId}-${shortPuuid}`
+      
       const row = new MessageActionRow().addComponents(
         new MessageButton()
-          .setCustomId(`confirm-icon-${iconId}-${Buffer.from(puuidData.puuid).toString('base64')}`)
+          .setCustomId(customId)
           .setLabel('✅ Confirmar icono')
           .setStyle('PRIMARY')
       )
