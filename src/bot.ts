@@ -10,6 +10,9 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
+import VerifyImageCommand from './commands/verify-image.js'
+
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -39,10 +42,29 @@ const client: Client = new Client({
 
 client.commands = new Collection()
 
+// Registrar el comando verify-image
+client.commands.set(
+  'verify-image',
+  new VerifyImageCommand(
+    /* aquí tu Config y tu instancia de I18n, por ejemplo: */ 
+    /* config */ {} as Config,
+    /* i18n */ i18n
+  )
+)
+
 client.login(process.env.DISCORD_TOKEN)
 
 // Agregar manejador de interacciones
 client.on('interactionCreate', async (interaction) => {
+
+  if (interaction.isCommand()) {
+    const cmd = client.commands.get(interaction.commandName)
+    if (cmd) {
+      return cmd.execute(interaction)
+    }
+  }
+  
+
   if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
 
   // Manejo para botones de verificación de icono
