@@ -45,9 +45,10 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
         .setStyle('PRIMARY')
     )
 
+    const attachment = new MessageAttachment(iconUrl, `${iconId}.png`)
     await interaction.reply({
       content: `Pon este icono en tu cliente de LoL y pulsa "Confirmar" cuando esté listo:`,
-      files: [iconUrl],
+      files: [attachment],  // Enviando la imagen como un archivo
       components: [row],
       ephemeral: true
     })
