@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { Events } from './events.js'
 import { DbUpgrader } from './db-upgrader.js'
 import ConfigValidator from './config-validator.js'
+import fetch from 'node-fetch'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -38,85 +39,130 @@ const client: Client = new Client({
 })
 
 client.commands = new Collection()
+client.verifyStore = new Map<string, { puuid: string; iconId: number }>()
 
 client.login(process.env.DISCORD_TOKEN)
 
 // Agregar manejador de interacciones
-client.verifyStore = new Map<string, { puuid: string; iconId: number }>();
-
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
+  // Verificación de icono
   if (interaction.customId.startsWith('confirm-')) {
-    const verifyId = interaction.customId.split('-')[1];
-    const entry = (client.verifyStore as Map<string, { puuid: string; iconId: number }>).get(verifyId);
+    const verifyId = interaction.customId.split('-')[1]
+    const entry = (client.verifyStore as Map<string, { puuid: string; iconId: number }>).get(verifyId)
     if (!entry) {
-      await interaction.reply({ content: 'Verificación inválida o caducada.', ephemeral: true });
-      return;
+      await interaction.reply({ content: 'Verificación inválida o caducada.', ephemeral: true })
+      return
     }
 
-    const { puuid, iconId } = entry;
-    const riotToken = process.env.RIOT_TOKEN;
-    const guild = interaction.guild;
-    const member = guild?.members.cache.get(interaction.user.id);
+    const { puuid, iconId } = entry
+    const riotToken = process.env.RIOT_TOKEN
+    const guild = interaction.guild
+    const member = guild?.members.cache.get(interaction.user.id)
 
     if (!riotToken || !guild || !member) {
-      await interaction.reply({ content: 'Error de configuración o permisos.', ephemeral: true });
-      return;
+      await interaction.reply({ content: 'Error de configuración o permisos.', ephemeral: true })
+      return
     }
 
     try {
+      // Obtener datos del invocador
       const summonerRes = await fetch(`https://${process.env.REGION}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
         headers: { 'X-Riot-Token': riotToken }
-      });
-      if (!summonerRes.ok) throw new Error('No se pudo obtener datos del invocador');
-      const summonerData = await summonerRes.json();
+      })
+      if (!summonerRes.ok) throw new Error('No se pudo obtener datos del invocador')
+      const summonerData = await summonerRes.json()
 
       if (summonerData.profileIconId !== iconId) {
-        await interaction.reply({ content: '❌ Tu icono actual no coincide.', ephemeral: true });
-        return;
+        await interaction.reply({ content: '❌ Tu icono actual no coincide.', ephemeral: true })
+        return
       }
 
       // Obtener datos de clasificatoria
       const rankedRes = await fetch(`https://${process.env.REGION}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`, {
         headers: { 'X-Riot-Token': riotToken }
-      });
-      const rankedData = await rankedRes.json();
-      const soloQueue = rankedData.find((q: any) => q.queueType === 'RANKED_SOLO_5x5');
+      })
+      const rankedData = await rankedRes.json()
+      const soloQueue = rankedData.find((q: any) => q.queueType === 'RANKED_SOLO_5x5')
 
       if (!soloQueue) {
-        await interaction.reply({ content: 'No se encontró información de clasificatoria soloQ.', ephemeral: true });
-        return;
+        await interaction.reply({ content: 'No se encontró información de clasificatoria soloQ.', ephemeral: true })
+        return
       }
 
-      const tier = soloQueue.tier;
+      const tier = soloQueue.tier
       const validEloRoles = process.env.RANKS ? JSON.parse(process.env.RANKS) : [
         'Iron','Bronze','Silver','Gold','Platinum','Emerald','Diamond','Master','Grandmaster','Challenger'
-      ];
+      ]
 
       // Eliminar roles anteriores de elo
-      const rolesToRemove = member.roles.cache.filter(role => validEloRoles.includes(role.name));
-      await member.roles.remove(rolesToRemove);
+      const rolesToRemove = member.roles.cache.filter(role => validEloRoles.includes(role.name))
+      await member.roles.remove(rolesToRemove)
 
       // Asignar el nuevo rol
-      const newRole = guild.roles.cache.find(r => r.name.toLowerCase() === tier.toLowerCase());
+      const newRole = guild.roles.cache.find(r => r.name.toLowerCase() === tier.toLowerCase())
       if (newRole) {
-        await member.roles.add(newRole);
-        await interaction.reply({ content: `✅ Rol de **${tier}** asignado.`, ephemeral: true });
+        await member.roles.add(newRole)
+        await interaction.reply({ content: `✅ Rol de **${tier}** asignado.`, ephemeral: true })
       } else {
-        await interaction.reply({ content: `✅ Verificado. No se encontró rol para **${tier}**.`, ephemeral: true });
+        await interaction.reply({ content: `✅ Verificado. No se encontró rol para **${tier}**.`, ephemeral: true })
       }
     } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: 'Ocurrió un error durante la verificación.', ephemeral: true });
+      console.error(err)
+      await interaction.reply({ content: 'Ocurrió un error durante la verificación.', ephemeral: true })
     }
 
-    (client.verifyStore as Map<string, { puuid: string; iconId: number }>).delete(verifyId);
-    return;
+    // Limpiar store
+    (client.verifyStore as Map<string, { puuid: string; iconId: number }>).delete(verifyId)
+    return
   }
 
-  // ...otros botones existentes...
-});
+  // Otros botones existentes
+  switch (interaction.customId) {
+    case 'button1':
+      await interaction.reply({
+        content: 'Por favor, escribe el nombre de usuario al cual le quieres añadir el rol.',
+        ephemeral: true
+      })
+
+      const filter = (message: Message) => message.author.id === interaction.user.id
+      const collected = await interaction.channel?.awaitMessages({
+        filter,
+        max: 1,
+        time: 15000,
+        errors: ['time'],
+      })
+
+      if (!collected) {
+        await interaction.followUp({ content: 'No se recibió ningún nombre de usuario a tiempo.' })
+        return
+      }
+
+      const username = collected.first()?.content
+      const memberToAdd = interaction.guild?.members.cache.find(m => m.user.username === username)
+      if (memberToAdd) {
+        const role = interaction.guild?.roles.cache.get('1357361465966858372') // Reemplazar por la ID real
+        if (role) {
+          await memberToAdd.roles.add(role)
+          await interaction.followUp({ content: `Rol añadido a ${username}!` })
+        } else {
+          await interaction.followUp({ content: 'No se encontró el rol.' })
+        }
+      } else {
+        await interaction.followUp({ content: 'No se encontró el usuario.' })
+      }
+      break
+    case 'button2':
+      await interaction.reply({ content: 'Botón 2 presionado' })
+      break
+    case 'button3':
+      await interaction.reply({ content: 'Botón 3 presionado' })
+      break
+    default:
+      await interaction.reply({ content: 'Acción desconocida' })
+  }
+})
 
 // Crear archivo players.json si no existe
 if (!fs.existsSync('./players.json')) {
@@ -130,6 +176,7 @@ db.defaults({ players: [] }).write()
 async function main() {
   const dbUpgrader = new DbUpgrader()
   await dbUpgrader.upgrade()
+
   try {
     const validator = new ConfigValidator({
       discordToken: process.env.DISCORD_TOKEN,
