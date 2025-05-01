@@ -55,22 +55,21 @@ export default class RankTempCommand extends CommandInterface<CommandInteraction
       const iconId = Math.floor(Math.random() * 28) + 1 // 1 al 28
       const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.8.1/img/profileicon/${iconId}.png`
 
-      // Después:
-const row = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId(...)
-    .setLabel(...)
-    .setStyle('PRIMARY') // En v13 los estilos son strings
-)
+      const row = new MessageActionRow().addComponents(
+        new MessageButton()
+          .setCustomId(`confirm-icon-${iconId}-${Buffer.from(puuidData.puuid).toString('base64')}`)
+          .setLabel('✅ Confirmar icono')
+          .setStyle('PRIMARY')
+      )
 
-const attachment = new MessageAttachment(iconUrl, 'icon.png')
+      const imageBuffer = await fetch(iconUrl).then(res => res.buffer())
+      const attachment = new MessageAttachment(imageBuffer, 'icon.png')
 
-await interaction.reply({
-  content: `Cambia tu icono al siguiente y pulsa "Confirmar":`,
-  files: [attachment],
-  components: [row]
-})
-
+      await interaction.reply({
+        content: `Cambia tu icono al siguiente y pulsa "Confirmar":`,
+        files: [attachment],
+        components: [row]
+      })
 
     } catch (error) {
       console.error('Error:', error)
