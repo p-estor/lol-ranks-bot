@@ -59,8 +59,14 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
     const buttonInteraction = interaction as ButtonInteraction
     if (!buttonInteraction.customId.startsWith('verify_icon_')) return
 
+    // Log: El customId del botón
+    console.log('🔍 [verify-image] Custom ID del botón:', buttonInteraction.customId)
+
     const [, iconIdStr, userId] = buttonInteraction.customId.split('_')
     const expectedIcon = parseInt(iconIdStr, 10)
+
+    // Log: iconId y userId obtenidos
+    console.log('🔍 [verify-image] iconId:', expectedIcon, 'userId:', userId)
 
     const userInput = buttonInteraction.message.interaction?.options.getString('summoner')
     if (!userInput || !userInput.includes('/')) {
@@ -69,24 +75,37 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
 
     const [rawName, tagLine] = userInput.split('/')
     const gameName = `${rawName.trim()}/${tagLine.trim()}`
-    const riotToken = process.env.RIOT_TOKEN
 
+    // Log: Nombre y Tag del invocador
+    console.log('🔍 [verify-image] gameName:', gameName)
+
+    const riotToken = process.env.RIOT_TOKEN
     if (!riotToken) {
       return buttonInteraction.reply({ content: 'Error: Riot Token no configurado.', ephemeral: true })
     }
 
     try {
+      // Log: Realizando la primera petición para obtener el puuid
+      console.log('🔍 [verify-image] Realizando petición para obtener el PUUID:', `${ACCOUNT_API}/${gameName}`)
       const puuidRes = await fetch(`${ACCOUNT_API}/${gameName}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
       const puuidData = await puuidRes.json()
 
+      // Log: Resultado de la petición de PUUID
+      console.log('🔍 [verify-image] PUUID obtenido:', puuidData.puuid)
+
+      // Realizando la segunda petición para obtener datos del summoner
+      console.log('🔍 [verify-image] Realizando petición para obtener los datos del summoner:', `${RIOT_API}/${puuidData.puuid}`)
       const summonerRes = await fetch(`${RIOT_API}/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
       const summonerData = await summonerRes.json()
 
       const currentIcon = summonerData.profileIconId
+
+      // Log: Comparando el icono actual con el esperado
+      console.log('🔍 [verify-image] Icono actual:', currentIcon, 'Icono esperado:', expectedIcon)
 
       if (currentIcon === expectedIcon) {
         await buttonInteraction.reply({ content: '✅ Verificación completada con éxito.', ephemeral: true })
@@ -98,6 +117,7 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
       await buttonInteraction.reply({ content: 'Error al verificar el icono. Intenta más tarde.', ephemeral: true })
     }
   }
+
 
   getSlashCommandData() {
     return {
