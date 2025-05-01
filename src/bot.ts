@@ -45,6 +45,38 @@ client.login(process.env.DISCORD_TOKEN)
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return; // Asegurarse de que es una interacción de botón
 
+  // Manejo para botones de verificación de icono
+  if (interaction.customId.startsWith('verify_icon_')) {
+    const [, iconId, puuid] = interaction.customId.split('_')
+
+    try {
+      const riotToken = process.env.RIOT_TOKEN
+      const response = await fetch(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`, {
+        headers: { 'X-Riot-Token': riotToken! }
+      })
+
+      if (!response.ok) {
+        console.error(`Error al verificar icono: ${response.status}`)
+        return interaction.reply({ content: 'No se pudo verificar tu icono.', ephemeral: true })
+      }
+
+      const summonerData = await response.json()
+      if (summonerData.profileIconId?.toString() === iconId) {
+        return interaction.reply({ content: '✅ ¡Icono verificado correctamente!', ephemeral: true })
+      } else {
+        return interaction.reply({
+          content: `❌ Tu icono actual es el ${summonerData.profileIconId}, no el ${iconId}.`,
+          ephemeral: true
+        })
+      }
+
+    } catch (err) {
+      console.error('Error al verificar el icono:', err)
+      return interaction.reply({ content: 'Ocurrió un error al verificar tu icono.', ephemeral: true })
+    }
+    return
+  }
+
   switch (interaction.customId) {
     case 'button1':
       await interaction.reply({
@@ -90,6 +122,7 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply({ content: 'Acción desconocida' });
   }
 });
+
 
 // Crear archivo players.json si no existe
 if (!fs.existsSync('./players.json')) {
