@@ -11,12 +11,12 @@ import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
 import fetch from 'node-fetch'
 
+// ... imports
+
 const ICON_RANGE = { min: 1, max: 28 }
 const REGION = 'europe'
 const RIOT_API = 'https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid'
 const ACCOUNT_API = `https://${REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id`
-
-const iconStore = new Map<string, number>()
 
 export default class VerifyImageCommand extends CommandInterface<CommandInteraction> {
   config: Config
@@ -35,10 +35,7 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
     }
 
     const [rawName, tagLine] = userInput.split('/')
-    const gameName = `${rawName.trim()}/${tagLine.trim()}`
     const iconId = Math.floor(Math.random() * (ICON_RANGE.max - ICON_RANGE.min + 1)) + ICON_RANGE.min
-    iconStore.set(interaction.user.id, iconId)
-
     const iconUrl = `https://ddragon.leagueoflegends.com/cdn/13.24.1/img/profileicon/${iconId}.png`
 
     const row = new MessageActionRow().addComponents(
@@ -65,9 +62,6 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
     const [, iconIdStr, userId] = buttonInteraction.customId.split('_')
     const expectedIcon = parseInt(iconIdStr, 10)
 
-    if (!iconStore.has(userId)) return
-
-
     const userInput = buttonInteraction.message.interaction?.options.getString('summoner')
     if (!userInput || !userInput.includes('/')) {
       return buttonInteraction.reply({ content: 'Error: Formato inválido. Vuelve a ejecutar el comando.', ephemeral: true })
@@ -75,8 +69,8 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
 
     const [rawName, tagLine] = userInput.split('/')
     const gameName = `${rawName.trim()}/${tagLine.trim()}`
-
     const riotToken = process.env.RIOT_TOKEN
+
     if (!riotToken) {
       return buttonInteraction.reply({ content: 'Error: Riot Token no configurado.', ephemeral: true })
     }
@@ -86,15 +80,13 @@ export default class VerifyImageCommand extends CommandInterface<CommandInteract
         headers: { 'X-Riot-Token': riotToken }
       })
       const puuidData = await puuidRes.json()
+
       const summonerRes = await fetch(`${RIOT_API}/${puuidData.puuid}`, {
         headers: { 'X-Riot-Token': riotToken }
       })
       const summonerData = await summonerRes.json()
 
       const currentIcon = summonerData.profileIconId
-      const [, iconIdStr, userId] = buttonInteraction.customId.split('_')
-      const expectedIcon = parseInt(iconIdStr, 10)
-
 
       if (currentIcon === expectedIcon) {
         await buttonInteraction.reply({ content: '✅ Verificación completada con éxito.', ephemeral: true })
