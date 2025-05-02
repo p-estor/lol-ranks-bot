@@ -152,7 +152,8 @@ client.on('interactionCreate', async (interaction) => {
     default:
       await interaction.reply({ content: 'Acción desconocida' });
   }
-};
+}
+});
 
 
 // Crear archivo players.json si no existe
