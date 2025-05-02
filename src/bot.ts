@@ -99,6 +99,15 @@ client.on('interactionCreate', async (interaction) => {
     return
   }
 
+  if (interaction.isButton()) {
+    if (interaction.customId === 'rango_boton') {
+      await interaction.reply({
+        content: '¡Botón pulsado!',
+        ephemeral: true
+      })
+      return
+    }
+
   switch (interaction.customId) {
     case 'button1':
       await interaction.reply({
