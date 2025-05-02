@@ -1,4 +1,5 @@
-import { CommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
+import { MessageActionRow, MessageButton } from 'discord.js'
+
 import { CommandInterface } from '../interfaces/command.interface.js'
 import { Config } from '../interfaces/config.interface.js'
 import { I18n } from 'i18n'
