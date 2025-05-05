@@ -9,7 +9,7 @@ export default {
       .setLabel('Verificar icono')
       .setStyle('PRIMARY');
 
-    const row = new MessageActionRow().addComponents(botonVerificar);
+    const row = new MessageActionRow().addComponents(botonVerificar); // Esto solo funciona a partir de v13.3.0
 
     await interaction.reply({
       content: 'Haz clic en el botón para comenzar la verificación:',
