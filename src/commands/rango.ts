@@ -1,8 +1,19 @@
-import { CommandInteraction, MessageActionRow, MessageButton } from 'discord.js';
+import {
+  CommandInteraction,
+  MessageActionRow,
+  MessageButton,
+} from 'discord.js';
 
 export default class RangoCommand {
   name = 'rango';
   description = 'Comando de prueba para verificar botones';
+
+  getSlashCommandData() {
+    return {
+      name: this.name,
+      description: this.description,
+    };
+  }
 
   async execute(interaction: CommandInteraction) {
     const botonVerificar = new MessageButton()
